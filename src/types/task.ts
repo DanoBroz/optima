@@ -1,0 +1,68 @@
+export type MotivationLevel = 'hate' | 'dislike' | 'neutral' | 'like' | 'love';
+export type DailyEnergyLevel = 'exhausted' | 'low' | 'medium' | 'high' | 'energized';
+
+export interface Task {
+  id: string;
+  user_id?: string;
+  title: string;
+  description?: string | null;
+  completed: boolean;
+  scheduled_time?: string | null; // HH:MM format
+  scheduled_date?: string | null; // YYYY-MM-DD format
+  duration: number; // in minutes
+  priority: 'low' | 'medium' | 'high';
+  energy_level: 'low' | 'medium' | 'high';
+  motivation_level: MotivationLevel;
+  is_locked: boolean;
+  order_index: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DailyEnergy {
+  id: string;
+  user_id: string;
+  date: string;
+  energy_level: DailyEnergyLevel;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  user_id?: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  is_external: boolean;
+  external_id?: string | null;
+  calendar_source?: string | null;
+  location?: string | null;
+  energy_level?: 'low' | 'medium' | 'high';
+  energy_drain?: number | null; // Override drain in minutes (null = use duration)
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserSettings {
+  id: string;
+  user_id: string;
+  work_start_time: string;
+  work_end_time: string;
+  daily_capacity_minutes: number;
+  timezone: string;
+}
+
+export interface TimeBlock {
+  hour: number;
+  tasks: Task[];
+  events: CalendarEvent[];
+}
+
+export interface DayCapacity {
+  total: number;
+  scheduled: number;
+  available: number;
+  percentage: number;
+}
