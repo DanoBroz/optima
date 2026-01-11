@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { Header } from '@/components/dashboard/Header';
 import { TimelineView } from '@/components/dashboard/TimelineView';
 import { TaskList } from '@/components/dashboard/TaskList';
@@ -9,18 +8,15 @@ import { AddTaskModal } from '@/components/dashboard/AddTaskModal';
 import { AddEventModal } from '@/components/dashboard/AddEventModal';
 import { DailyEnergySelector } from '@/components/dashboard/DailyEnergySelector';
 import { useTasks } from '@/hooks/useTasks';
-import { useAuth } from '@/hooks/useAuth';
-import { Loader2 } from 'lucide-react';
 
 type TabType = 'timeline' | 'tasks' | 'all';
 
 const Index = () => {
-  const { user, loading: authLoading } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
-  
+
   const {
     tasks,
     scheduledTasks,
@@ -39,20 +35,6 @@ const Index = () => {
     getCapacity,
     setDailyEnergyLevel,
   } = useTasks(selectedDate);
-
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Redirect to auth if not logged in
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
 
   const handleLockToggle = (id: string) => {
     const task = tasks.find(t => t.id === id);

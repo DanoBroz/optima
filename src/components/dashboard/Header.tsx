@@ -1,6 +1,5 @@
 import { format, addDays, subDays } from 'date-fns';
 import { Calendar, Plus, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 
 interface HeaderProps {
   selectedDate: Date;
@@ -10,14 +9,13 @@ interface HeaderProps {
   isScheduling: boolean;
 }
 
-export function Header({ 
-  selectedDate, 
-  onDateChange, 
+export function Header({
+  selectedDate,
+  onDateChange,
   onAddTask,
   onAutoSchedule,
   isScheduling
 }: HeaderProps) {
-  const { user, signOut } = useAuth();
   const dayName = format(selectedDate, 'EEEE');
   const dateStr = format(selectedDate, 'MMMM d, yyyy');
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
@@ -74,17 +72,6 @@ export function Header({
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Add Task</span>
             </button>
-            
-            {/* User avatar/logout */}
-            {user && (
-              <button
-                onClick={() => signOut()}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-secondary flex items-center justify-center text-xs sm:text-sm font-medium text-muted-foreground hover:bg-secondary/80 transition-colors active:scale-95"
-                title="Sign out"
-              >
-                {user.email?.[0].toUpperCase()}
-              </button>
-            )}
           </div>
         </div>
       </div>
