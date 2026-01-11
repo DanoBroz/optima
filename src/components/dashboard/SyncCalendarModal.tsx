@@ -7,12 +7,11 @@ interface SyncCalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[]) => Promise<void>;
-  selectedDate: Date;
 }
 
 type SyncStep = 'instructions' | 'importing' | 'success' | 'error';
 
-export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: SyncCalendarModalProps) {
+export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarModalProps) {
   const [step, setStep] = useState<SyncStep>('instructions');
   const [importedCount, setImportedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');

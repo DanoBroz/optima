@@ -201,7 +201,6 @@ const Index = () => {
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
         onImport={importEvents}
-        selectedDate={selectedDate}
       />
     </div>
   );
