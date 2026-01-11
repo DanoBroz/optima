@@ -31,7 +31,7 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
     setStep('importing');
     try {
       const text = await file.text();
-      const events = parseICSFile(text, selectedDate);
+      const events = parseICSFile(text);
 
       await onImport(events);
       setImportedCount(events.length);
@@ -213,7 +213,7 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
 }
 
 // Simple ICS parser for calendar events
-function parseICSFile(icsContent: string, targetDate: Date): Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[] {
+function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[] {
   const events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[] = [];
   const lines = icsContent.split(/\r?\n/);
 
