@@ -12,6 +12,7 @@ interface TimelineViewProps {
   onDeferTask: (id: string) => void;
   onRescheduleTask: (id: string, time: string) => void;
   onLockToggle: (id: string) => void;
+  onEventClick?: (event: CalendarEvent) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -25,14 +26,15 @@ function formatHour(hour: number): string {
   return `${hour - 12} PM`;
 }
 
-export function TimelineView({ 
-  tasks, 
+export function TimelineView({
+  tasks,
   events,
-  onToggleTask, 
+  onToggleTask,
   onDeleteTask,
   onDeferTask,
   onRescheduleTask,
-  onLockToggle
+  onLockToggle,
+  onEventClick
 }: TimelineViewProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
@@ -155,9 +157,13 @@ export function TimelineView({
               <div className="flex-1 py-2 pl-4 pr-4 space-y-2">
                 {/* Calendar events (locked) */}
                 {hourEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onClick={onEventClick ? () => onEventClick(event) : undefined}
+                  />
                 ))}
-                
+
                 {/* Tasks */}
                 {hourTasks.map((task, index) => (
                   <div

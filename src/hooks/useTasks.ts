@@ -247,6 +247,56 @@ export function useTasks(selectedDate: Date = new Date()) {
     }
   };
 
+  // Update calendar event
+  const updateEvent = async (id: string, updates: Partial<CalendarEvent>) => {
+    try {
+      await db.calendar_events.update(id, {
+        ...updates,
+        updated_at: new Date().toISOString()
+      });
+
+      setEvents(prev =>
+        prev.map(e => e.id === id ? { ...e, ...updates } : e)
+      );
+      toast.success('Event updated');
+    } catch (error) {
+      console.error('Error updating event:', error);
+      toast.error('Failed to update event');
+    }
+  };
+
+  // Delete calendar event
+  const deleteEvent = async (id: string) => {
+    try {
+      await db.calendar_events.delete(id);
+      setEvents(prev => prev.filter(e => e.id !== id));
+      toast.success('Event deleted');
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast.error('Failed to delete event');
+    }
+  };
+
+  // Bulk import calendar events
+  const importEvents = async (events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[]) => {
+    try {
+      const newEvents: CalendarEvent[] = events.map(event => ({
+        ...event,
+        id: self.crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      await db.calendar_events.bulkAdd(newEvents);
+      setEvents(prev => [...prev, ...newEvents]);
+      toast.success(`Imported ${newEvents.length} events`);
+    } catch (error) {
+      console.error('Error importing events:', error);
+      toast.error('Failed to import events');
+      throw error;
+    }
+  };
+
   // Calculate capacity based on energy level
   const getCapacity = (): DayCapacity => {
     const wakingHours = 16 * 60; // 16 hours awake (24 - 8 sleep)
@@ -321,6 +371,9 @@ export function useTasks(selectedDate: Date = new Date()) {
     deferTask,
     autoSchedule,
     addEvent,
+    updateEvent,
+    deleteEvent,
+    importEvents,
     getCapacity,
     setDailyEnergyLevel,
     refetch: fetchTasks

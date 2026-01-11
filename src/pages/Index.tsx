@@ -6,8 +6,10 @@ import { StatsBar } from '@/components/dashboard/StatsBar';
 import { TabBar } from '@/components/dashboard/TabBar';
 import { AddTaskModal } from '@/components/dashboard/AddTaskModal';
 import { AddEventModal } from '@/components/dashboard/AddEventModal';
+import { SyncCalendarModal } from '@/components/dashboard/SyncCalendarModal';
 import { DailyEnergySelector } from '@/components/dashboard/DailyEnergySelector';
 import { useTasks } from '@/hooks/useTasks';
+import type { CalendarEvent } from '@/types/task';
 
 type TabType = 'timeline' | 'tasks' | 'all';
 
@@ -15,6 +17,8 @@ const Index = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
 
   const {
@@ -32,6 +36,9 @@ const Index = () => {
     deferTask,
     autoSchedule,
     addEvent,
+    updateEvent,
+    deleteEvent,
+    importEvents,
     getCapacity,
     setDailyEnergyLevel,
   } = useTasks(selectedDate);
@@ -41,6 +48,16 @@ const Index = () => {
     if (task) {
       updateTask(id, { is_locked: !task.is_locked });
     }
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setEditingEvent(event);
+    setIsEventModalOpen(true);
+  };
+
+  const handleEventModalClose = () => {
+    setIsEventModalOpen(false);
+    setEditingEvent(null);
   };
 
   const capacity = getCapacity();
@@ -78,12 +95,24 @@ const Index = () => {
               isScheduling={isScheduling}
             />
           </div>
-          <button
-            onClick={() => setIsEventModalOpen(true)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-          >
-            + Add calendar event
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setEditingEvent(null);
+                setIsEventModalOpen(true);
+              }}
+              className="flex-1 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 text-left"
+            >
+              + Add calendar event
+            </button>
+            <button
+              onClick={() => setIsSyncModalOpen(true)}
+              className="text-sm text-primary hover:text-primary/80 transition-colors py-2 px-3 rounded-lg hover:bg-primary/10"
+              title="Sync iOS Calendar"
+            >
+              Sync
+            </button>
+          </div>
         </aside>
 
         {/* Main timeline/content area */}
@@ -100,6 +129,7 @@ const Index = () => {
                   onDeferTask={deferTask}
                   onRescheduleTask={rescheduleTask}
                   onLockToggle={handleLockToggle}
+                  onEventClick={handleEventClick}
                 />
               </div>
             )}
@@ -143,6 +173,7 @@ const Index = () => {
               onDeferTask={deferTask}
               onRescheduleTask={rescheduleTask}
               onLockToggle={handleLockToggle}
+              onEventClick={handleEventClick}
             />
           </div>
         </div>
@@ -159,8 +190,17 @@ const Index = () => {
       />
       <AddEventModal
         isOpen={isEventModalOpen}
-        onClose={() => setIsEventModalOpen(false)}
+        onClose={handleEventModalClose}
         onAdd={addEvent}
+        onUpdate={updateEvent}
+        onDelete={deleteEvent}
+        selectedDate={selectedDate}
+        editEvent={editingEvent}
+      />
+      <SyncCalendarModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onImport={importEvents}
         selectedDate={selectedDate}
       />
     </div>

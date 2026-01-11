@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface EventCardProps {
   event: CalendarEvent;
+  onClick?: () => void;
 }
 
 const energyConfig: Record<string, { emoji: string; label: string; color: string }> = {
@@ -13,22 +14,22 @@ const energyConfig: Record<string, { emoji: string; label: string; color: string
   high: { emoji: '🔥', label: 'Draining', color: 'text-destructive' },
 };
 
-export function EventCard({ event }: EventCardProps) {
+export function EventCard({ event, onClick }: EventCardProps) {
   const startTime = format(new Date(event.start_time), 'h:mm a');
   const endTime = format(new Date(event.end_time), 'h:mm a');
-  
+
   // Calculate duration
   const start = new Date(event.start_time);
   const end = new Date(event.end_time);
   const durationMinutes = (end.getTime() - start.getTime()) / 60000;
-  
+
   // Calculate drain based on energy level
   const drainMultipliers = { low: 0.5, medium: 1.0, high: 1.5 };
   const energyLevel = (event.energy_level || 'medium') as 'low' | 'medium' | 'high';
   const drain = event.energy_drain ?? Math.round(durationMinutes * drainMultipliers[energyLevel]);
-  
+
   const config = energyConfig[energyLevel];
-  
+
   const formatDrain = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -36,16 +37,20 @@ export function EventCard({ event }: EventCardProps) {
     if (mins === 0) return `${hours}h`;
     return `${hours}h ${mins}m`;
   };
-  
+
   return (
-    <div className={cn(
-      "rounded-xl p-3 border",
-      energyLevel === 'high' 
-        ? "bg-destructive/10 border-destructive/20" 
-        : energyLevel === 'low'
-        ? "bg-success/10 border-success/20"
-        : "bg-primary/10 border-primary/20"
-    )}>
+    <div
+      className={cn(
+        "rounded-xl p-3 border transition-all",
+        energyLevel === 'high'
+          ? "bg-destructive/10 border-destructive/20"
+          : energyLevel === 'low'
+          ? "bg-success/10 border-success/20"
+          : "bg-primary/10 border-primary/20",
+        onClick && !event.is_external && "cursor-pointer hover:shadow-md active:scale-[0.98]"
+      )}
+      onClick={onClick && !event.is_external ? onClick : undefined}
+    >
       <div className="flex items-start gap-3">
         <div className={cn(
           "flex-shrink-0 w-1 h-full rounded-full",

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Zap, Trash2 } from 'lucide-react';
 import type { CalendarEvent } from '@/types/task';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,10 @@ interface AddEventModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (event: Omit<CalendarEvent, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
+  onUpdate?: (id: string, updates: Partial<CalendarEvent>) => void;
+  onDelete?: (id: string) => void;
   selectedDate: Date;
+  editEvent?: CalendarEvent | null;
 }
 
 const energyOptions: { level: 'low' | 'medium' | 'high'; emoji: string; label: string; description: string }[] = [
@@ -23,7 +26,7 @@ const drainMultipliers: Record<'low' | 'medium' | 'high', number> = {
   high: 1.5,   // Draining events drain 150% of their duration
 };
 
-export function AddEventModal({ isOpen, onClose, onAdd, selectedDate }: AddEventModalProps) {
+export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, selectedDate, editEvent }: AddEventModalProps) {
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
@@ -31,6 +34,33 @@ export function AddEventModal({ isOpen, onClose, onAdd, selectedDate }: AddEvent
   const [energyLevel, setEnergyLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [useCustomDrain, setUseCustomDrain] = useState(false);
   const [customDrain, setCustomDrain] = useState(60);
+
+  const isEditMode = !!editEvent;
+
+  // Pre-populate form when editing
+  useEffect(() => {
+    if (editEvent) {
+      setTitle(editEvent.title);
+      // Extract time from ISO string (e.g., "2024-01-15T09:00:00Z" -> "09:00")
+      const startDate = new Date(editEvent.start_time);
+      const endDate = new Date(editEvent.end_time);
+      setStartTime(format(startDate, 'HH:mm'));
+      setEndTime(format(endDate, 'HH:mm'));
+      setLocation(editEvent.location || '');
+      setEnergyLevel(editEvent.energy_level || 'medium');
+      setUseCustomDrain(editEvent.energy_drain !== undefined && editEvent.energy_drain !== null);
+      setCustomDrain(editEvent.energy_drain || 60);
+    } else {
+      // Reset form for add mode
+      setTitle('');
+      setStartTime('09:00');
+      setEndTime('10:00');
+      setLocation('');
+      setEnergyLevel('medium');
+      setUseCustomDrain(false);
+      setCustomDrain(60);
+    }
+  }, [editEvent]);
 
   if (!isOpen) return null;
 
@@ -49,25 +79,36 @@ export function AddEventModal({ isOpen, onClose, onAdd, selectedDate }: AddEvent
     if (!title.trim()) return;
 
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    
-    onAdd({
-      title: title.trim(),
-      start_time: `${dateStr}T${startTime}:00Z`,
-      end_time: `${dateStr}T${endTime}:00Z`,
-      is_external: false,
-      location: location || undefined,
-      energy_level: energyLevel,
-      energy_drain: useCustomDrain ? customDrain : undefined
-    });
 
-    setTitle('');
-    setStartTime('09:00');
-    setEndTime('10:00');
-    setLocation('');
-    setEnergyLevel('medium');
-    setUseCustomDrain(false);
-    setCustomDrain(60);
+    if (isEditMode && editEvent && onUpdate) {
+      onUpdate(editEvent.id, {
+        title: title.trim(),
+        start_time: `${dateStr}T${startTime}:00Z`,
+        end_time: `${dateStr}T${endTime}:00Z`,
+        location: location || undefined,
+        energy_level: energyLevel,
+        energy_drain: useCustomDrain ? customDrain : undefined
+      });
+    } else {
+      onAdd({
+        title: title.trim(),
+        start_time: `${dateStr}T${startTime}:00Z`,
+        end_time: `${dateStr}T${endTime}:00Z`,
+        is_external: false,
+        location: location || undefined,
+        energy_level: energyLevel,
+        energy_drain: useCustomDrain ? customDrain : undefined
+      });
+    }
+
     onClose();
+  };
+
+  const handleDelete = () => {
+    if (editEvent && onDelete) {
+      onDelete(editEvent.id);
+      onClose();
+    }
   };
 
   const formatDrain = (minutes: number) => {
@@ -91,7 +132,7 @@ export function AddEventModal({ isOpen, onClose, onAdd, selectedDate }: AddEvent
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-          <h2 className="text-lg font-semibold">Add Event</h2>
+          <h2 className="text-lg font-semibold">{isEditMode ? 'Edit Event' : 'Add Event'}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-secondary rounded-xl transition-colors"
@@ -220,13 +261,25 @@ export function AddEventModal({ isOpen, onClose, onAdd, selectedDate }: AddEvent
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={!title.trim()}
-            className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-card active:scale-[0.98]"
-          >
-            Add Event
-          </button>
+          <div className="flex gap-3">
+            {isEditMode && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="py-3.5 px-5 bg-destructive/10 text-destructive rounded-xl font-semibold transition-all hover:bg-destructive/20 active:scale-[0.98] flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={!title.trim()}
+              className="flex-1 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-card active:scale-[0.98]"
+            >
+              {isEditMode ? 'Save Changes' : 'Add Event'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
