@@ -3,7 +3,6 @@ export type DailyEnergyLevel = 'exhausted' | 'low' | 'medium' | 'high' | 'energi
 
 export interface Task {
   id: string;
-  user_id?: string;
   title: string;
   description?: string | null;
   completed: boolean;
@@ -21,7 +20,6 @@ export interface Task {
 
 export interface DailyEnergy {
   id: string;
-  user_id: string;
   date: string;
   energy_level: DailyEnergyLevel;
   notes?: string | null;
@@ -31,7 +29,6 @@ export interface DailyEnergy {
 
 export interface CalendarEvent {
   id: string;
-  user_id?: string;
   title: string;
   start_time: string;
   end_time: string;
@@ -46,8 +43,6 @@ export interface CalendarEvent {
 }
 
 export interface UserSettings {
-  id: string;
-  user_id: string;
   work_start_time: string;
   work_end_time: string;
   daily_capacity_minutes: number;
