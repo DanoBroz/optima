@@ -6,22 +6,22 @@ interface DailyEnergySelectorProps {
   onSelect: (level: DailyEnergyLevel) => void;
 }
 
-const energyConfig: { level: DailyEnergyLevel; emoji: string; label: string; colorClass: string }[] = [
-  { level: 'exhausted', emoji: '😴', label: 'Exhausted', colorClass: 'text-[hsl(var(--energy-exhausted))]' },
-  { level: 'low', emoji: '😔', label: 'Low', colorClass: 'text-[hsl(var(--energy-low))]' },
-  { level: 'medium', emoji: '😊', label: 'Okay', colorClass: 'text-[hsl(var(--energy-medium))]' },
-  { level: 'high', emoji: '😄', label: 'Good', colorClass: 'text-[hsl(var(--energy-high))]' },
-  { level: 'energized', emoji: '🔥', label: 'Great!', colorClass: 'text-[hsl(var(--energy-energized))]' },
+const energyConfig: { level: DailyEnergyLevel; emoji: string; label: string }[] = [
+  { level: 'exhausted', emoji: '🌙', label: 'Rest' },
+  { level: 'low', emoji: '🌿', label: 'Low' },
+  { level: 'medium', emoji: '☀️', label: 'Good' },
+  { level: 'high', emoji: '⚡', label: 'High' },
+  { level: 'energized', emoji: '🔥', label: 'Peak' },
 ];
 
 export function DailyEnergySelector({ currentLevel, onSelect }: DailyEnergySelectorProps) {
   return (
-    <div className="bg-card rounded-2xl p-3 sm:p-4 shadow-card border border-border/50">
-      <h3 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
+    <div className="bg-card rounded-3xl p-4 md:p-5 shadow-card border border-border/30">
+      <h3 className="text-sm font-semibold text-foreground mb-3">
         How's your energy today?
       </h3>
-      <div className="flex gap-1.5 sm:gap-2">
-        {energyConfig.map(({ level, emoji, label, colorClass }) => {
+      <div className="flex gap-2">
+        {energyConfig.map(({ level, emoji, label }) => {
           const isSelected = currentLevel === level;
           
           return (
@@ -29,21 +29,21 @@ export function DailyEnergySelector({ currentLevel, onSelect }: DailyEnergySelec
               key={level}
               onClick={() => onSelect(level)}
               className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all",
+                "flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-2xl transition-all duration-200",
                 isSelected
-                  ? "bg-primary/10 ring-2 ring-primary/50 scale-105"
+                  ? "bg-primary/15 ring-2 ring-primary/40 scale-105"
                   : "bg-secondary/50 hover:bg-secondary active:scale-95"
               )}
             >
               <span className={cn(
-                "text-xl sm:text-2xl transition-all",
-                isSelected ? "" : "grayscale opacity-60"
+                "text-2xl transition-all",
+                isSelected ? "scale-110" : "grayscale opacity-50"
               )}>
                 {emoji}
               </span>
               <span className={cn(
-                "text-[10px] sm:text-xs font-medium truncate w-full text-center",
-                isSelected ? colorClass : "text-muted-foreground"
+                "text-[11px] font-semibold",
+                isSelected ? "text-primary" : "text-muted-foreground"
               )}>
                 {label}
               </span>

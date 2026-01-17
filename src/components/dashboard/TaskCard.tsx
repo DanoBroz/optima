@@ -13,15 +13,15 @@ interface TaskCardProps {
 }
 
 const priorityColors = {
-  low: 'border-l-muted-foreground/30',
-  medium: 'border-l-accent-foreground',
-  high: 'border-l-primary',
+  low: 'bg-muted-foreground/20',
+  medium: 'bg-amber-400',
+  high: 'bg-primary',
 };
 
 const energyBadges = {
   low: { bg: 'bg-secondary', text: 'text-muted-foreground' },
   medium: { bg: 'bg-accent', text: 'text-accent-foreground' },
-  high: { bg: 'bg-primary/10', text: 'text-primary' },
+  high: { bg: 'bg-primary/15', text: 'text-primary' },
 };
 
 export function TaskCard({ 
@@ -36,18 +36,23 @@ export function TaskCard({
   return (
     <div
       className={cn(
-        "group relative bg-card rounded-xl shadow-soft border border-border/50 transition-all duration-200 border-l-4",
-        priorityColors[task.priority],
-        "hover:shadow-card hover:border-border",
+        "group relative bg-card rounded-2xl shadow-soft border border-border/30 transition-all duration-200",
+        "hover:shadow-card hover:border-border/50",
         task.completed && "opacity-50",
-        compact ? "p-3" : "p-4",
+        compact ? "p-3" : "p-3.5",
         draggable && "cursor-grab active:cursor-grabbing"
       )}
     >
-      <div className="flex items-start gap-3">
+      {/* Priority indicator - dot style */}
+      <div className={cn(
+        "absolute top-3.5 left-3.5 w-2 h-2 rounded-full",
+        priorityColors[task.priority]
+      )} />
+
+      <div className="flex items-start gap-3 pl-4">
         {/* Drag handle */}
         {draggable && (
-          <div className="flex-shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+          <div className="flex-shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors mt-0.5">
             <GripVertical className="w-4 h-4" />
           </div>
         )}
@@ -56,14 +61,14 @@ export function TaskCard({
         <button
           onClick={() => onToggle(task.id)}
           className={cn(
-            "flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all duration-200 flex items-center justify-center",
+            "flex-shrink-0 w-5 h-5 rounded-lg border-2 transition-all duration-200 flex items-center justify-center mt-0.5",
             task.completed
               ? "bg-success border-success"
-              : "border-muted-foreground/40 hover:border-primary"
+              : "border-border hover:border-primary"
           )}
         >
           {task.completed && (
-            <Check className="w-3 h-3 text-success-foreground" />
+            <Check className="w-3 h-3 text-success-foreground" strokeWidth={3} />
           )}
         </button>
 
@@ -71,7 +76,7 @@ export function TaskCard({
         <div className="flex-1 min-w-0">
           <p
             className={cn(
-              "font-medium text-sm leading-snug transition-all duration-200",
+              "font-semibold text-sm leading-snug transition-all duration-200",
               task.completed && "line-through text-muted-foreground"
             )}
           >
@@ -83,7 +88,7 @@ export function TaskCard({
             {task.scheduled_time && (
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Clock className="w-3 h-3" />
-                <span className="text-xs">
+                <span className="text-xs font-medium">
                   {task.scheduled_time}
                   {task.duration && ` · ${task.duration}m`}
                 </span>
@@ -91,18 +96,18 @@ export function TaskCard({
             )}
             
             {!task.scheduled_time && task.duration && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground font-medium">
                 {task.duration}m
               </span>
             )}
             
             {/* Energy badge */}
             <span className={cn(
-              "text-[10px] font-medium px-1.5 py-0.5 rounded-full capitalize",
+              "text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize",
               energyBadges[task.energy_level].bg,
               energyBadges[task.energy_level].text
             )}>
-              {task.energy_level} focus
+              {task.energy_level}
             </span>
             
             {/* Lock indicator */}
@@ -113,11 +118,11 @@ export function TaskCard({
         </div>
 
         {/* Actions */}
-        <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           {onLockToggle && (
             <button
               onClick={() => onLockToggle(task.id)}
-              className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
               title={task.is_locked ? "Unlock time" : "Lock time"}
             >
               {task.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -127,7 +132,7 @@ export function TaskCard({
           {onDefer && !task.completed && (
             <button
               onClick={() => onDefer(task.id)}
-              className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
               title="Move to tomorrow"
             >
               <ArrowRight className="w-4 h-4" />
@@ -136,7 +141,7 @@ export function TaskCard({
           
           <button
             onClick={() => onDelete(task.id)}
-            className="p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
+            className="p-2 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>

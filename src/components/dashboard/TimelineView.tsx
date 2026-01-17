@@ -20,10 +20,10 @@ const WORK_HOURS_START = 6;
 const WORK_HOURS_END = 22;
 
 function formatHour(hour: number): string {
-  if (hour === 0) return '12 AM';
-  if (hour === 12) return '12 PM';
-  if (hour < 12) return `${hour} AM`;
-  return `${hour - 12} PM`;
+  if (hour === 0) return '12a';
+  if (hour === 12) return '12p';
+  if (hour < 12) return `${hour}a`;
+  return `${hour - 12}p`;
 }
 
 export function TimelineView({
@@ -106,12 +106,12 @@ export function TimelineView({
         className="absolute left-0 right-0 z-10 pointer-events-none"
         style={{ top: `${nowPosition}%` }}
       >
-        <div className="flex items-center gap-2 px-4">
+        <div className="flex items-center gap-3 px-4">
           <div className="relative">
-            <div className="w-3 h-3 rounded-full bg-timeline-now" />
-            <div className="absolute inset-0 w-3 h-3 rounded-full bg-timeline-now pulse-ring" />
+            <div className="w-3 h-3 rounded-full bg-primary" />
+            <div className="absolute inset-0 w-3 h-3 rounded-full bg-primary pulse-ring" />
           </div>
-          <div className="flex-1 h-[2px] bg-timeline-now rounded-full" />
+          <div className="flex-1 h-[2px] bg-primary rounded-full" />
         </div>
       </div>
 
@@ -129,20 +129,20 @@ export function TimelineView({
             <div
               key={hour}
               className={cn(
-                "relative flex min-h-[80px] border-b border-timeline-line/50 transition-colors",
-                !isWorkHour && "opacity-50",
+                "relative flex min-h-[72px] border-b border-border/30 transition-colors",
+                !isWorkHour && "bg-secondary/20",
                 isPast && "opacity-60",
-                isDragOver && "bg-accent/50"
+                isDragOver && "bg-primary/10"
               )}
               onDragOver={(e) => handleDragOver(e, hour)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, hour)}
             >
               {/* Hour label */}
-              <div className="w-16 md:w-20 flex-shrink-0 py-2 px-2 md:px-4">
+              <div className="w-14 md:w-16 flex-shrink-0 py-3 px-3 md:px-4">
                 <span
                   className={cn(
-                    "text-xs font-medium",
+                    "text-xs font-semibold",
                     isCurrent ? "text-primary" : "text-muted-foreground"
                   )}
                 >
@@ -151,10 +151,10 @@ export function TimelineView({
               </div>
 
               {/* Timeline line */}
-              <div className="absolute left-16 md:left-20 top-0 bottom-0 w-px bg-timeline-line" />
+              <div className="absolute left-14 md:left-16 top-0 bottom-0 w-px bg-border/50" />
 
               {/* Events and tasks for this hour */}
-              <div className="flex-1 py-2 pl-4 pr-4 space-y-2">
+              <div className="flex-1 py-2 pl-4 pr-3 space-y-2">
                 {/* Calendar events (locked) */}
                 {hourEvents.map((event) => (
                   <EventCard

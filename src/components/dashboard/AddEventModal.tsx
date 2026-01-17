@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { X, Zap, Trash2 } from 'lucide-react';
 import type { CalendarEvent } from '@/types/task';
