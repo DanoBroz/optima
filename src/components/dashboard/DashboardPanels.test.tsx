@@ -13,6 +13,7 @@ const buildTask = (overrides: Partial<Task> = {}): Task => ({
   priority: 'medium',
   energy_level: 'medium',
   motivation_level: 'neutral',
+  availability_preset: 'any',
   is_locked: false,
   order_index: 0,
   scheduled_time: null,
@@ -54,7 +55,6 @@ describe('DashboardPanels', () => {
         events={[buildEvent()]}
         dailyEnergy={baseEnergy}
         capacity={baseCapacity}
-        isScheduling={false}
         onLockToggle={vi.fn()}
         onEventClick={vi.fn()}
         onOpenEventModal={vi.fn()}

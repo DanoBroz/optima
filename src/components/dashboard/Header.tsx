@@ -1,11 +1,13 @@
 import { format, addDays, subDays } from 'date-fns';
-import { Plus, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Sparkles, Sun, Moon, Settings } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 interface HeaderProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   onAddTask: () => void;
   onAutoSchedule: () => void;
+  onOpenSettings: () => void;
   isScheduling: boolean;
 }
 
@@ -14,11 +16,17 @@ export function Header({
   onDateChange,
   onAddTask,
   onAutoSchedule,
+  onOpenSettings,
   isScheduling
 }: HeaderProps) {
+  const { theme, setTheme } = useTheme();
   const dayName = format(selectedDate, 'EEEE');
   const dateStr = format(selectedDate, 'MMM d');
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
 
   return (
     <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl safe-area-inset-top">
@@ -67,13 +75,35 @@ export function Header({
               <span>{isScheduling ? 'Optimizing...' : 'Optimize'}</span>
             </button>
             
-            {/* Add task button */}
+            {/* Add task button (desktop only) */}
             <button
               onClick={onAddTask}
-              className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-primary text-primary-foreground rounded-2xl font-semibold text-sm shadow-card hover:shadow-elevated transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-2xl font-semibold text-sm shadow-card hover:shadow-elevated transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">New Task</span>
+              <span>New Task</span>
+            </button>
+
+            {/* Theme toggle button */}
+            <button
+              onClick={toggleTheme}
+              className="flex items-center justify-center w-11 h-11 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-2xl transition-all duration-200 active:scale-95"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
+            </button>
+
+            {/* Settings button */}
+            <button
+              onClick={onOpenSettings}
+              className="flex items-center justify-center w-11 h-11 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-2xl transition-all duration-200 active:scale-95"
+              aria-label="Settings"
+            >
+              <Settings className="w-5 h-5" />
             </button>
           </div>
         </div>

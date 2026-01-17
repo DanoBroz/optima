@@ -3,6 +3,7 @@ import { DailyEnergySelector } from '@/components/dashboard/DailyEnergySelector'
 import { TaskList } from '@/components/dashboard/TaskList';
 import { StatsBar } from '@/components/dashboard/StatsBar';
 import { TimelineView } from '@/components/dashboard/TimelineView';
+import { CalendarPlus, RefreshCw } from 'lucide-react';
 
 type TabType = 'timeline' | 'tasks' | 'all';
 
@@ -26,13 +27,40 @@ interface DashboardPanelsProps {
   events: CalendarEvent[];
   dailyEnergy: DailyEnergy | null;
   capacity: DayCapacity;
-  isScheduling: boolean;
   onLockToggle: (id: string) => void;
   onEventClick: (event: CalendarEvent) => void;
   onOpenEventModal: () => void;
   onOpenSyncModal: () => void;
   taskActions: TaskActions;
   energyActions: EnergyActions;
+}
+
+function CalendarActions({ 
+  onOpenEventModal, 
+  onOpenSyncModal 
+}: { 
+  onOpenEventModal: () => void; 
+  onOpenSyncModal: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-1 py-2">
+      <button
+        onClick={onOpenEventModal}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-secondary font-medium"
+      >
+        <CalendarPlus className="w-4 h-4" />
+        <span>Add event</span>
+      </button>
+      <button
+        onClick={onOpenSyncModal}
+        className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors py-2 px-3 rounded-xl hover:bg-primary/10 font-semibold"
+        title="Sync iOS Calendar"
+      >
+        <RefreshCw className="w-4 h-4" />
+        <span>Sync</span>
+      </button>
+    </div>
+  );
 }
 
 export function DashboardPanels({
@@ -43,7 +71,6 @@ export function DashboardPanels({
   events,
   dailyEnergy,
   capacity,
-  isScheduling,
   onLockToggle,
   onEventClick,
   onOpenEventModal,
@@ -52,42 +79,34 @@ export function DashboardPanels({
   energyActions,
 }: DashboardPanelsProps) {
   return (
-    <main className="flex-1 flex flex-col md:flex-row gap-5 md:gap-8 container py-2 md:py-6 pb-28 md:pb-6">
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col gap-5 w-[340px] flex-shrink-0">
-        <div className="animate-slide-up" style={{ animationDelay: '50ms' }}>
-          <DailyEnergySelector
-            currentLevel={dailyEnergy?.energy_level || null}
-            onSelect={energyActions.setLevel}
-          />
-        </div>
-        <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <StatsBar tasks={tasks} capacity={capacity} energyLevel={dailyEnergy?.energy_level} />
-        </div>
-        <div className="animate-slide-up flex-1" style={{ animationDelay: '200ms' }}>
-          <TaskList
-            tasks={unscheduledTasks}
-            onToggleTask={taskActions.toggle}
-            onDeleteTask={taskActions.remove}
-            onDeferTask={taskActions.defer}
-            onAutoSchedule={taskActions.autoSchedule}
-            isScheduling={isScheduling}
-          />
-        </div>
-        <div className="flex items-center gap-2 px-1">
-          <button
-            onClick={onOpenEventModal}
-            className="flex-1 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 text-left font-medium"
-          >
-            + Add calendar event
-          </button>
-          <button
-            onClick={onOpenSyncModal}
-            className="text-sm text-primary hover:text-primary/80 transition-colors py-2.5 px-4 rounded-2xl hover:bg-primary/10 font-semibold"
-            title="Sync iOS Calendar"
-          >
-            Sync
-          </button>
+    <main className="flex-1 flex flex-col md:flex-row gap-5 md:gap-8 container py-2 md:py-6 pb-28 md:pb-6 md:overflow-hidden">
+      {/* Desktop sidebar - sticky */}
+      <aside className="hidden md:block w-[340px] flex-shrink-0 h-full overflow-y-auto scrollbar-hide">
+        <div className="sticky top-0 flex flex-col gap-5">
+          <div className="animate-slide-up" style={{ animationDelay: '50ms' }}>
+            <DailyEnergySelector
+              currentLevel={dailyEnergy?.energy_level || null}
+              onSelect={energyActions.setLevel}
+            />
+          </div>
+          <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <StatsBar tasks={tasks} capacity={capacity} energyLevel={dailyEnergy?.energy_level} />
+          </div>
+          <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+            <TaskList
+              tasks={unscheduledTasks}
+              onToggleTask={taskActions.toggle}
+              onDeleteTask={taskActions.remove}
+              onDeferTask={taskActions.defer}
+            />
+          </div>
+          {/* Calendar actions - under backlog */}
+          <div className="animate-slide-up" style={{ animationDelay: '250ms' }}>
+            <CalendarActions 
+              onOpenEventModal={onOpenEventModal} 
+              onOpenSyncModal={onOpenSyncModal} 
+            />
+          </div>
         </div>
       </aside>
 
@@ -121,13 +140,16 @@ export function DashboardPanels({
                 onToggleTask={taskActions.toggle}
                 onDeleteTask={taskActions.remove}
                 onDeferTask={taskActions.defer}
-                onAutoSchedule={taskActions.autoSchedule}
-                isScheduling={isScheduling}
+              />
+              {/* Calendar actions for mobile Tasks tab */}
+              <CalendarActions 
+                onOpenEventModal={onOpenEventModal} 
+                onOpenSyncModal={onOpenSyncModal} 
               />
             </div>
           )}
           {activeTab === 'all' && (
-            <div className="flex-1 animate-fade-in">
+            <div className="flex-1 animate-fade-in overflow-y-auto pb-4">
               <TaskList
                 tasks={tasks}
                 onToggleTask={taskActions.toggle}
@@ -135,6 +157,13 @@ export function DashboardPanels({
                 onDeferTask={taskActions.defer}
                 title="All Tasks"
               />
+              {/* Calendar actions for mobile All tab */}
+              <div className="mt-4">
+                <CalendarActions 
+                  onOpenEventModal={onOpenEventModal} 
+                  onOpenSyncModal={onOpenSyncModal} 
+                />
+              </div>
             </div>
           )}
         </div>

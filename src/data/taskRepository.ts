@@ -14,6 +14,7 @@ const toTask = (row: TaskRow): Task => ({
   priority: row.priority,
   energy_level: row.energy_level,
   motivation_level: row.motivation_level,
+  availability_preset: (row as TaskRow & { availability_preset?: string }).availability_preset as Task['availability_preset'] || 'any',
   is_locked: row.is_locked,
   order_index: row.order_index,
   created_at: row.created_at,
@@ -43,9 +44,10 @@ export const taskRepository = {
       priority: task.priority,
       energy_level: task.energy_level,
       motivation_level: task.motivation_level,
+      availability_preset: task.availability_preset,
       is_locked: task.is_locked,
       order_index: task.order_index,
-    };
+    } as TaskInsert;
 
     const { error } = await supabase.from('tasks').insert(insertData as never);
     if (error) throw error;

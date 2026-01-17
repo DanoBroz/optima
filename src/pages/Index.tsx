@@ -4,6 +4,7 @@ import { TabBar } from '@/components/dashboard/TabBar';
 import { AddTaskModal } from '@/components/dashboard/AddTaskModal';
 import { AddEventModal } from '@/components/dashboard/AddEventModal';
 import { SyncCalendarModal } from '@/components/dashboard/SyncCalendarModal';
+import { SettingsModal } from '@/components/dashboard/SettingsModal';
 import { DashboardPanels } from '@/components/dashboard/DashboardPanels';
 import { useTasks } from '@/hooks/useTasks';
 import type { CalendarEvent } from '@/types/task';
@@ -15,6 +16,7 @@ const Index = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
 
@@ -56,6 +58,7 @@ const Index = () => {
         onDateChange={setSelectedDate}
         onAddTask={() => setIsTaskModalOpen(true)} 
         onAutoSchedule={taskActions.autoSchedule}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
         isScheduling={isScheduling}
       />
 
@@ -67,7 +70,6 @@ const Index = () => {
         events={events}
         dailyEnergy={dailyEnergy}
         capacity={capacity}
-        isScheduling={isScheduling}
         onLockToggle={handleLockToggle}
         onEventClick={handleEventClick}
         onOpenEventModal={() => {
@@ -109,6 +111,10 @@ const Index = () => {
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
         onImport={eventActions.import}
+      />
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </div>
   );

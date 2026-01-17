@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { TaskList } from './TaskList';
 import type { Task } from '@/types/task';
@@ -14,6 +13,7 @@ const buildTask = (overrides: Partial<Task> = {}): Task => ({
   priority: 'medium',
   energy_level: 'medium',
   motivation_level: 'neutral',
+  availability_preset: 'any',
   is_locked: false,
   order_index: 0,
   scheduled_time: null,
@@ -37,21 +37,16 @@ describe('TaskList', () => {
     expect(screen.getAllByText('Task title')).toHaveLength(2);
   });
 
-  it('fires auto-schedule action', async () => {
-    const user = userEvent.setup();
-    const onAutoSchedule = vi.fn();
-
+  it('shows empty state when no tasks', () => {
     render(
       <TaskList
-        tasks={[buildTask({ id: 'a' })]}
+        tasks={[]}
         onToggleTask={vi.fn()}
         onDeleteTask={vi.fn()}
         onDeferTask={vi.fn()}
-        onAutoSchedule={onAutoSchedule}
       />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Auto-schedule' }));
-    expect(onAutoSchedule).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('No tasks yet')).toBeInTheDocument();
   });
 });

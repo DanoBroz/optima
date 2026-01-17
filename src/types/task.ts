@@ -1,5 +1,6 @@
 export type MotivationLevel = 'hate' | 'dislike' | 'neutral' | 'like' | 'love';
 export type DailyEnergyLevel = 'exhausted' | 'low' | 'medium' | 'high' | 'energized';
+export type AvailabilityPreset = 'any' | 'morning' | 'afternoon' | 'evening';
 
 export interface Task {
   id: string;
@@ -12,6 +13,7 @@ export interface Task {
   priority: 'low' | 'medium' | 'high';
   energy_level: 'low' | 'medium' | 'high';
   motivation_level: MotivationLevel;
+  availability_preset: AvailabilityPreset;
   is_locked: boolean;
   order_index: number;
   created_at?: string;
@@ -47,6 +49,11 @@ export interface UserSettings {
   work_end_time: string;
   daily_capacity_minutes: number;
   timezone: string;
+  availability_presets: {
+    morning: { start: string; end: string };
+    afternoon: { start: string; end: string };
+    evening: { start: string; end: string };
+  };
 }
 
 export interface TimeBlock {

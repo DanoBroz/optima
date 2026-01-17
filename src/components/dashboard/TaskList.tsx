@@ -8,8 +8,6 @@ interface TaskListProps {
   onDeleteTask: (id: string) => void;
   onDeferTask: (id: string) => void;
   title?: string;
-  onAutoSchedule?: () => void;
-  isScheduling?: boolean;
 }
 
 export function TaskList({ 

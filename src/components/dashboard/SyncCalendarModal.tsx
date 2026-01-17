@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Upload, Calendar, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/task';
@@ -11,12 +11,47 @@ interface SyncCalendarModalProps {
 
 type SyncStep = 'instructions' | 'importing' | 'success' | 'error';
 
+const DRAG_THRESHOLD = 120;
+
 export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarModalProps) {
   const [step, setStep] = useState<SyncStep>('instructions');
   const [importedCount, setImportedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isFileDragging, setIsFileDragging] = useState(false);
+  const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragStartY = useRef(0);
+  const handleRef = useRef<HTMLDivElement>(null);
+
+  // Track pointer on window for reliable drag
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      e.preventDefault();
+      const delta = Math.max(0, e.clientY - dragStartY.current);
+      setDragY(delta);
+    };
+
+    const handlePointerUp = () => {
+      if (dragY > DRAG_THRESHOLD) {
+        onClose();
+      }
+      setDragY(0);
+      setIsDragging(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [isDragging, dragY, onClose]);
 
   if (!isOpen) return null;
 
@@ -56,16 +91,16 @@ export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarMod
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    setIsFileDragging(true);
   };
 
   const handleDragLeave = () => {
-    setIsDragging(false);
+    setIsFileDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    setIsFileDragging(false);
 
     const file = e.dataTransfer.files[0];
     if (file) {
@@ -77,7 +112,7 @@ export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarMod
     setStep('instructions');
     setImportedCount(0);
     setErrorMessage('');
-    setIsDragging(false);
+    setIsFileDragging(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -88,6 +123,12 @@ export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarMod
     setTimeout(resetModal, 300);
   };
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    dragStartY.current = e.clientY;
+    setIsDragging(true);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
@@ -95,116 +136,136 @@ export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarMod
         onClick={handleClose}
       />
 
-      <div className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl shadow-elevated animate-slide-up max-h-[90vh] overflow-y-auto">
-        <div className="sm:hidden flex justify-center pt-3">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-        </div>
-
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Sync iOS Calendar</h2>
-          </div>
-          <button
-            onClick={handleClose}
-            className="p-2 hover:bg-secondary rounded-xl transition-colors"
+      {/* Modal */}
+      <div
+        className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl shadow-elevated animate-slide-up max-h-[80vh] flex flex-col"
+        style={{
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+        }}
+      >
+        {/* Fixed Header Area */}
+        <div className="flex-shrink-0">
+          {/* Handle bar */}
+          <div
+            ref={handleRef}
+            className="flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing select-none hover:bg-secondary/40 transition-colors rounded-t-3xl sm:rounded-t-2xl"
+            style={{ touchAction: 'none' }}
+            onPointerDown={handlePointerDown}
           >
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
+            <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40 sm:w-8 sm:h-1" />
+          </div>
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Sync iOS Calendar</h2>
+            </div>
+            <button
+              onClick={handleClose}
+              className="p-2 hover:bg-secondary rounded-xl transition-colors"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
 
-        <div className="p-6">
-          {step === 'instructions' && (
-            <div className="space-y-5">
-              <div className="bg-primary/10 rounded-xl p-4 space-y-2">
-                <h3 className="font-semibold text-sm">How to export from iOS Calendar</h3>
-                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Open Calendar app on your iPhone/iPad</li>
-                  <li>Tap "Calendars" at the bottom</li>
-                  <li>Tap the info button (i) next to a calendar</li>
-                  <li>Tap "Share Calendar" and choose "Export"</li>
-                  <li>Save the .ics file and upload it below</li>
-                </ol>
-              </div>
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="p-6">
+            {step === 'instructions' && (
+              <div className="space-y-5">
+                <div className="bg-primary/10 rounded-xl p-4 space-y-2">
+                  <h3 className="font-semibold text-sm">How to export from iOS Calendar</h3>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Open Calendar app on your iPhone/iPad</li>
+                    <li>Tap "Calendars" at the bottom</li>
+                    <li>Tap the info button (i) next to a calendar</li>
+                    <li>Tap "Share Calendar" and choose "Export"</li>
+                    <li>Save the .ics file and upload it below</li>
+                  </ol>
+                </div>
 
-              <div className="text-center">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".ics"
-                  onChange={handleFileInputChange}
-                  className="hidden"
-                />
+                <div className="text-center">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".ics"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                  />
 
-                <div
-                  className={cn(
-                    "border-2 border-dashed rounded-xl p-8 transition-all cursor-pointer",
-                    isDragging
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50 hover:bg-secondary/50"
-                  )}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <Upload className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                  <p className="font-medium mb-1">
-                    {isDragging ? 'Drop file here' : 'Click or drag .ics file'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Import calendar events from iOS Calendar
-                  </p>
+                  <div
+                    className={cn(
+                      "border-2 border-dashed rounded-xl p-8 transition-all cursor-pointer",
+                      isFileDragging
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50 hover:bg-secondary/50"
+                    )}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <Upload className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                    <p className="font-medium mb-1">
+                      {isFileDragging ? 'Drop file here' : 'Click or drag .ics file'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Import calendar events from iOS Calendar
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-secondary/50 rounded-xl p-3 text-xs text-muted-foreground">
+                  <strong>Note:</strong> Events will be imported with their energy drain calculated
+                  based on duration. You can edit individual events after import to adjust settings.
                 </div>
               </div>
+            )}
 
-              <div className="bg-secondary/50 rounded-xl p-3 text-xs text-muted-foreground">
-                <strong>Note:</strong> Events will be imported with their energy drain calculated
-                based on duration. You can edit individual events after import to adjust settings.
-              </div>
-            </div>
-          )}
-
-          {step === 'importing' && (
-            <div className="py-8 text-center space-y-4">
-              <RefreshCw className="w-12 h-12 mx-auto text-primary animate-spin" />
-              <div>
-                <p className="font-semibold">Importing calendar events...</p>
-                <p className="text-sm text-muted-foreground mt-1">Please wait</p>
-              </div>
-            </div>
-          )}
-
-          {step === 'success' && (
-            <div className="py-8 text-center space-y-4">
-              <CheckCircle2 className="w-12 h-12 mx-auto text-success" />
-              <div>
-                <p className="font-semibold">Successfully imported!</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {importedCount} event{importedCount !== 1 ? 's' : ''} added to your calendar
-                </p>
-              </div>
-            </div>
-          )}
-
-          {step === 'error' && (
-            <div className="space-y-5">
+            {step === 'importing' && (
               <div className="py-8 text-center space-y-4">
-                <AlertCircle className="w-12 h-12 mx-auto text-destructive" />
+                <RefreshCw className="w-12 h-12 mx-auto text-primary animate-spin" />
                 <div>
-                  <p className="font-semibold">Import failed</p>
-                  <p className="text-sm text-muted-foreground mt-1">{errorMessage}</p>
+                  <p className="font-semibold">Importing calendar events...</p>
+                  <p className="text-sm text-muted-foreground mt-1">Please wait</p>
                 </div>
               </div>
+            )}
 
-              <button
-                onClick={() => setStep('instructions')}
-                className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-semibold transition-all hover:shadow-card active:scale-[0.98]"
-              >
-                Try Again
-              </button>
-            </div>
-          )}
+            {step === 'success' && (
+              <div className="py-8 text-center space-y-4">
+                <CheckCircle2 className="w-12 h-12 mx-auto text-success" />
+                <div>
+                  <p className="font-semibold">Successfully imported!</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {importedCount} event{importedCount !== 1 ? 's' : ''} added to your calendar
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 'error' && (
+              <div className="space-y-5">
+                <div className="py-8 text-center space-y-4">
+                  <AlertCircle className="w-12 h-12 mx-auto text-destructive" />
+                  <div>
+                    <p className="font-semibold">Import failed</p>
+                    <p className="text-sm text-muted-foreground mt-1">{errorMessage}</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setStep('instructions')}
+                  className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-semibold transition-all hover:shadow-card active:scale-[0.98]"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

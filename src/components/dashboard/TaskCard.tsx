@@ -14,7 +14,7 @@ interface TaskCardProps {
 
 const priorityColors = {
   low: 'bg-muted-foreground/20',
-  medium: 'bg-amber-400',
+  medium: 'bg-amber-500 dark:bg-amber-400',
   high: 'bg-primary',
 };
 
