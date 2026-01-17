@@ -1,20 +1,87 @@
 import type { CalendarEvent } from '@/types/task';
-import { db } from '@/db/database';
+import type { EventRow, EventInsert } from '@/types/supabase';
+import { supabase } from '@/lib/supabase';
+
+// Convert DB row to app CalendarEvent type
+const toEvent = (row: EventRow): CalendarEvent => ({
+  id: row.id,
+  title: row.title,
+  start_time: row.start_time,
+  end_time: row.end_time,
+  is_external: row.is_external,
+  external_id: row.external_id,
+  calendar_source: row.calendar_source,
+  location: row.location,
+  energy_level: row.energy_level ?? undefined,
+  energy_drain: row.energy_drain,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+});
 
 export const eventRepository = {
   async getAll(): Promise<CalendarEvent[]> {
-    return db.calendar_events.toArray();
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .select('*')
+      .order('start_time', { ascending: true });
+
+    if (error) throw error;
+    return ((data ?? []) as EventRow[]).map(toEvent);
   },
+
   async add(event: CalendarEvent): Promise<void> {
-    await db.calendar_events.add(event);
+    const insertData: EventInsert = {
+      id: event.id,
+      title: event.title,
+      start_time: event.start_time,
+      end_time: event.end_time,
+      is_external: event.is_external,
+      external_id: event.external_id,
+      calendar_source: event.calendar_source,
+      location: event.location,
+      energy_level: event.energy_level,
+      energy_drain: event.energy_drain,
+    };
+
+    const { error } = await supabase.from('calendar_events').insert(insertData as never);
+    if (error) throw error;
   },
+
   async update(id: string, updates: Partial<CalendarEvent>): Promise<void> {
-    await db.calendar_events.update(id, updates);
+    const { error } = await supabase
+      .from('calendar_events')
+      .update(updates as never)
+      .eq('id', id);
+
+    if (error) throw error;
   },
+
   async remove(id: string): Promise<void> {
-    await db.calendar_events.delete(id);
+    const { error } = await supabase
+      .from('calendar_events')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   },
+
   async bulkAdd(events: CalendarEvent[]): Promise<void> {
-    await db.calendar_events.bulkAdd(events);
+    if (events.length === 0) return;
+
+    const insertData: EventInsert[] = events.map((event) => ({
+      id: event.id,
+      title: event.title,
+      start_time: event.start_time,
+      end_time: event.end_time,
+      is_external: event.is_external,
+      external_id: event.external_id,
+      calendar_source: event.calendar_source,
+      location: event.location,
+      energy_level: event.energy_level,
+      energy_drain: event.energy_drain,
+    }));
+
+    const { error } = await supabase.from('calendar_events').insert(insertData as never);
+    if (error) throw error;
   },
 };
