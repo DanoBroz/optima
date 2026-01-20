@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel } from '@/types/task';
+import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel, AvailabilityPreset } from '@/types/task';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { taskRepository } from '@/data/taskRepository';
 import { eventRepository } from '@/data/eventRepository';
 import { energyRepository } from '@/data/energyRepository';
@@ -218,34 +218,336 @@ export function useTasks(selectedDate: Date = new Date()) {
     toast.success('Task moved to tomorrow');
   };
 
-  const autoSchedule = async () => {
+  const autoSchedule = async (): Promise<{ scheduled: Task[]; unscheduled: Task[] }> => {
     if (!user) {
       toast.error('Please sign in to schedule tasks');
-      return;
+      return { scheduled: [], unscheduled: [] };
+    }
+
+    // Get all unlocked, incomplete tasks that could be (re)scheduled:
+    // - Unlocked tasks scheduled for today (will be rescheduled to optimal slots)
+    // - Unscheduled backlog tasks (will be scheduled)
+    const tasksToOptimize = tasks.filter(task =>
+      !task.is_locked &&
+      !task.completed &&
+      (!task.scheduled_time || task.scheduled_date === dateStr)
+    );
+
+    if (tasksToOptimize.length === 0) {
+      toast.info('No tasks to optimize');
+      return { scheduled: [], unscheduled: [] };
     }
 
     setIsScheduling(true);
     try {
-      const unscheduledTasks = tasks.filter(task => !task.scheduled_time && !task.completed);
-
-      if (unscheduledTasks.length === 0) {
-        toast.info('No tasks to schedule');
-        return;
-      }
-
-      const scheduledTasks = scheduleService.autoSchedule(
+      const scheduledTasks = scheduleService.autoScheduleAllUnlocked(
         tasks,
         events,
         dailyEnergy?.energy_level || DEFAULT_DAILY_ENERGY,
         dateStr
       );
 
-      await taskRepository.bulkUpdate(scheduledTasks);
-      await fetchTasks();
-      toast.success(`Scheduled ${scheduledTasks.length} tasks`);
+      // Find which tasks could not be scheduled
+      const scheduledIds = new Set(scheduledTasks.map(t => t.id));
+      const unscheduledTasks = tasksToOptimize.filter(t => !scheduledIds.has(t.id));
+
+      if (scheduledTasks.length > 0) {
+        await taskRepository.bulkUpdate(scheduledTasks);
+        await fetchTasks();
+      }
+
+      // Show toast only for fully successful optimization
+      if (scheduledTasks.length > 0 && unscheduledTasks.length === 0) {
+        toast.success(`Optimized ${scheduledTasks.length} tasks`);
+      } else if (scheduledTasks.length > 0 && unscheduledTasks.length > 0) {
+        toast.success(`Scheduled ${scheduledTasks.length} tasks`);
+      }
+      // Don't show toast for unscheduled - let the UI handle it via modal
+
+      return { scheduled: scheduledTasks, unscheduled: unscheduledTasks };
     } catch (error) {
       console.error('Auto-schedule error:', error);
-      toast.error('Failed to auto-schedule tasks');
+      // On error, return all tasks as unscheduled so modal can show
+      return { scheduled: [], unscheduled: tasksToOptimize };
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const autoScheduleSelected = async (selectedIds: string[]): Promise<{ scheduled: Task[]; unscheduled: Task[] }> => {
+    if (!user) {
+      toast.error('Please sign in to schedule tasks');
+      return { scheduled: [], unscheduled: [] };
+    }
+
+    if (selectedIds.length === 0) {
+      toast.info('No tasks selected');
+      return { scheduled: [], unscheduled: [] };
+    }
+
+    // Get selected tasks before try block so we can return them on error
+    const selectedTasks = tasks.filter(
+      t => selectedIds.includes(t.id) && !t.completed && !t.is_locked && !t.scheduled_time
+    );
+
+    setIsScheduling(true);
+    try {
+      const scheduledTasks = scheduleService.autoScheduleSelected(
+        tasks,
+        selectedIds,
+        events,
+        dailyEnergy?.energy_level || DEFAULT_DAILY_ENERGY,
+        dateStr
+      );
+
+      // Find which selected tasks were not scheduled
+      const scheduledIdsSet = new Set(scheduledTasks.map(t => t.id));
+      const unscheduledTasks = selectedTasks.filter(t => !scheduledIdsSet.has(t.id));
+
+      if (scheduledTasks.length > 0) {
+        await taskRepository.bulkUpdate(scheduledTasks);
+        await fetchTasks();
+      }
+
+      if (scheduledTasks.length > 0 && unscheduledTasks.length === 0) {
+        toast.success(`Scheduled ${scheduledTasks.length} of ${selectedIds.length} selected tasks`);
+      } else if (scheduledTasks.length > 0 && unscheduledTasks.length > 0) {
+        toast.success(`Scheduled ${scheduledTasks.length} tasks`);
+      }
+      // Don't show toast for unscheduled - let the UI handle it via modal
+
+      return { scheduled: scheduledTasks, unscheduled: unscheduledTasks };
+    } catch (error) {
+      console.error('Auto-schedule selected error:', error);
+      // On error, return all selected tasks as unscheduled so modal can show
+      return { scheduled: [], unscheduled: selectedTasks };
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const autoScheduleBacklog = async (): Promise<{ scheduled: Task[]; unscheduled: Task[] }> => {
+    if (!user) {
+      toast.error('Please sign in to schedule tasks');
+      return { scheduled: [], unscheduled: [] };
+    }
+
+    const backlogTasks = tasks.filter(
+      task => !task.scheduled_time && !task.completed && !task.is_locked
+    );
+
+    if (backlogTasks.length === 0) {
+      toast.info('No backlog tasks to schedule');
+      return { scheduled: [], unscheduled: [] };
+    }
+
+    setIsScheduling(true);
+    try {
+      const scheduledTasks = scheduleService.autoScheduleBacklog(
+        tasks,
+        events,
+        dailyEnergy?.energy_level || DEFAULT_DAILY_ENERGY,
+        dateStr
+      );
+
+      // Find which backlog tasks were not scheduled
+      const scheduledIds = new Set(scheduledTasks.map(t => t.id));
+      const unscheduledTasks = backlogTasks.filter(t => !scheduledIds.has(t.id));
+
+      if (scheduledTasks.length > 0) {
+        await taskRepository.bulkUpdate(scheduledTasks);
+        await fetchTasks();
+      }
+
+      if (scheduledTasks.length > 0 && unscheduledTasks.length === 0) {
+        toast.success(`Scheduled ${scheduledTasks.length} backlog tasks`);
+      } else if (scheduledTasks.length > 0 && unscheduledTasks.length > 0) {
+        toast.success(`Scheduled ${scheduledTasks.length} tasks`);
+      }
+      // Don't show toast for unscheduled - let the UI handle it via modal
+
+      return { scheduled: scheduledTasks, unscheduled: unscheduledTasks };
+    } catch (error) {
+      console.error('Auto-schedule backlog error:', error);
+      // On error, return all backlog tasks as unscheduled so modal can show
+      return { scheduled: [], unscheduled: backlogTasks };
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const moveToBacklog = async (id: string) => {
+    if (!user) {
+      toast.error('Please sign in to update tasks');
+      return;
+    }
+
+    const task = tasks.find(item => item.id === id);
+    if (!task) return;
+
+    if (task.completed) {
+      toast.error('Cannot move completed tasks to backlog');
+      return;
+    }
+
+    await updateTask(id, {
+      scheduled_time: null,
+      scheduled_date: null,
+      is_locked: false,
+    });
+    toast.success('Task moved to backlog');
+  };
+
+  const toggleLock = async (id: string) => {
+    if (!user) {
+      toast.error('Please sign in to update tasks');
+      return;
+    }
+
+    const task = tasks.find(item => item.id === id);
+    if (!task) return;
+
+    if (task.completed) {
+      toast.error('Cannot lock/unlock completed tasks');
+      return;
+    }
+
+    await updateTask(id, {
+      is_locked: !task.is_locked,
+    });
+    toast.success(task.is_locked ? 'Task unlocked' : 'Task locked');
+  };
+
+  const findNextSlotToday = (
+    duration: number,
+    preset: AvailabilityPreset
+  ): string | null => {
+    return scheduleService.findNextSlot(dateStr, duration, preset, events, tasks);
+  };
+
+  const findNextSlotTomorrow = (
+    duration: number,
+    preset: AvailabilityPreset
+  ): { date: string; time: string } | null => {
+    const tomorrow = addDays(selectedDate, 1);
+    const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+    const time = scheduleService.findNextSlot(tomorrowStr, duration, preset, events, tasks);
+    if (time) {
+      return { date: tomorrowStr, time };
+    }
+    return null;
+  };
+
+  const isTimeInPast = (time: string): boolean => {
+    return scheduleService.isTimeInPast(time, dateStr);
+  };
+
+  /**
+   * Schedule tasks for next day (respecting constraints)
+   * Returns tasks that still couldn't be scheduled
+   */
+  const scheduleForNextDay = async (tasksToSchedule: Task[]): Promise<Task[]> => {
+    if (!user || tasksToSchedule.length === 0) return tasksToSchedule;
+
+    setIsScheduling(true);
+    try {
+      const { scheduled, unscheduled } = scheduleService.scheduleForNextDay(
+        tasksToSchedule,
+        tasks,
+        events,
+        dailyEnergy?.energy_level || DEFAULT_DAILY_ENERGY,
+        dateStr
+      );
+
+      if (scheduled.length > 0) {
+        await taskRepository.bulkUpdate(scheduled);
+        await fetchTasks();
+        toast.success(`Scheduled ${scheduled.length} tasks for tomorrow`);
+      }
+
+      if (unscheduled.length > 0) {
+        toast.info(`${unscheduled.length} tasks couldn't fit tomorrow, kept in backlog`);
+      }
+
+      return unscheduled;
+    } catch (error) {
+      console.error('Schedule for next day error:', error);
+      toast.error('Failed to schedule tasks');
+      return tasksToSchedule;
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  /**
+   * Schedule tasks ignoring preset constraints (but respecting work hours)
+   * Returns tasks that still couldn't be scheduled
+   */
+  const scheduleIgnoringPreset = async (tasksToSchedule: Task[]): Promise<Task[]> => {
+    if (!user || tasksToSchedule.length === 0) return tasksToSchedule;
+
+    setIsScheduling(true);
+    try {
+      const { scheduled, unscheduled } = scheduleService.scheduleIgnoringPreset(
+        tasksToSchedule,
+        tasks,
+        events,
+        dailyEnergy?.energy_level || DEFAULT_DAILY_ENERGY,
+        dateStr
+      );
+
+      if (scheduled.length > 0) {
+        await taskRepository.bulkUpdate(scheduled);
+        await fetchTasks();
+        toast.success(`Scheduled ${scheduled.length} tasks (ignoring presets)`);
+      }
+
+      if (unscheduled.length > 0) {
+        toast.info(`${unscheduled.length} tasks still couldn't be scheduled`);
+      }
+
+      return unscheduled;
+    } catch (error) {
+      console.error('Schedule ignoring preset error:', error);
+      toast.error('Failed to schedule tasks');
+      return tasksToSchedule;
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  /**
+   * Schedule tasks ignoring all constraints (preset + work hours)
+   * Returns tasks that still couldn't be scheduled
+   */
+  const scheduleIgnoringAll = async (tasksToSchedule: Task[]): Promise<Task[]> => {
+    if (!user || tasksToSchedule.length === 0) return tasksToSchedule;
+
+    setIsScheduling(true);
+    try {
+      const { scheduled, unscheduled } = scheduleService.scheduleIgnoringAll(
+        tasksToSchedule,
+        tasks,
+        events,
+        dailyEnergy?.energy_level || DEFAULT_DAILY_ENERGY,
+        dateStr
+      );
+
+      if (scheduled.length > 0) {
+        await taskRepository.bulkUpdate(scheduled);
+        await fetchTasks();
+        toast.success(`Scheduled ${scheduled.length} tasks (ignoring all constraints)`);
+      }
+
+      if (unscheduled.length > 0) {
+        toast.info(`${unscheduled.length} tasks still couldn't be scheduled`);
+      }
+
+      return unscheduled;
+    } catch (error) {
+      console.error('Schedule ignoring all error:', error);
+      toast.error('Failed to schedule tasks');
+      return tasksToSchedule;
     } finally {
       setIsScheduling(false);
     }
@@ -368,6 +670,10 @@ export function useTasks(selectedDate: Date = new Date()) {
         reschedule: rescheduleTask,
         defer: deferTask,
         autoSchedule,
+        autoScheduleSelected,
+        autoScheduleBacklog,
+        moveToBacklog,
+        toggleLock,
       },
       event: {
         add: addEvent,
@@ -382,6 +688,14 @@ export function useTasks(selectedDate: Date = new Date()) {
         tasks: fetchTasks,
         events: fetchEvents,
         energy: fetchDailyEnergy,
+      },
+      scheduling: {
+        findNextSlotToday,
+        findNextSlotTomorrow,
+        isTimeInPast,
+        scheduleForNextDay,
+        scheduleIgnoringPreset,
+        scheduleIgnoringAll,
       },
     },
   };

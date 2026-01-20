@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Task, CalendarEvent } from '@/types/task';
 import { TaskCard } from './TaskCard';
 import { EventCard } from './EventCard';
@@ -12,6 +12,7 @@ interface TimelineViewProps {
   onDeferTask: (id: string) => void;
   onRescheduleTask: (id: string, time: string) => void;
   onLockToggle: (id: string) => void;
+  onMoveToBacklog?: (id: string) => void;
   onEventClick?: (event: CalendarEvent) => void;
 }
 
@@ -31,12 +32,15 @@ export function TimelineView({
   onDeferTask,
   onRescheduleTask,
   onLockToggle,
+  onMoveToBacklog,
   onEventClick
 }: TimelineViewProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
+  const [nowPositionPx, setNowPositionPx] = useState<number>(0);
   const timelineRef = useRef<HTMLDivElement>(null);
   const nowIndicatorRef = useRef<HTMLDivElement>(null);
+  const hourRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -56,7 +60,29 @@ export function TimelineView({
 
   const currentHour = currentTime.getHours();
   const currentMinute = currentTime.getMinutes();
-  const nowPosition = ((currentHour * 60 + currentMinute) / (24 * 60)) * 100;
+
+  // Calculate the indicator position using actual DOM measurements
+  const calculateNowPosition = useCallback(() => {
+    const hourBlock = hourRefs.current[currentHour];
+    if (!hourBlock) return;
+
+    const blockTop = hourBlock.offsetTop;
+    const blockHeight = hourBlock.offsetHeight;
+    const minuteOffset = (currentMinute / 60) * blockHeight;
+
+    setNowPositionPx(blockTop + minuteOffset);
+  }, [currentHour, currentMinute]);
+
+  // Recalculate position when time changes
+  useEffect(() => {
+    calculateNowPosition();
+  }, [calculateNowPosition]);
+
+  // Recalculate after DOM updates (tasks/events change block heights)
+  useEffect(() => {
+    const timer = setTimeout(calculateNowPosition, 0);
+    return () => clearTimeout(timer);
+  }, [tasks, events, calculateNowPosition]);
 
   const getTasksForHour = (hour: number) => {
     return tasks.filter((task) => {
@@ -101,7 +127,7 @@ export function TimelineView({
       <div
         ref={nowIndicatorRef}
         className="absolute left-0 right-0 z-10 pointer-events-none"
-        style={{ top: `${nowPosition}%` }}
+        style={{ top: `${nowPositionPx}px` }}
       >
         <div className="flex items-center gap-2 px-2">
           <div className="relative">
@@ -125,6 +151,7 @@ export function TimelineView({
           return (
             <div
               key={hour}
+              ref={(el) => { hourRefs.current[hour] = el; }}
               className={cn(
                 "relative flex min-h-[56px] border-b border-border/30 transition-colors",
                 !isWorkHour && "bg-secondary/20",
@@ -178,6 +205,7 @@ export function TimelineView({
                       onDelete={onDeleteTask}
                       onDefer={onDeferTask}
                       onLockToggle={onLockToggle}
+                      onMoveToBacklog={onMoveToBacklog}
                       compact
                       draggable
                     />

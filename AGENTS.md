@@ -4,7 +4,7 @@ Guidelines for AI coding agents working in this repository.
 
 ## Project Overview
 
-**Optima** is a React 19 task scheduler app with energy-aware scheduling. Built with TypeScript, Vite, Tailwind CSS, and shadcn/ui components. Uses IndexedDB (Dexie) for local persistence.
+**Optima** is a React 19 task scheduler app with energy-aware scheduling. Built with TypeScript, Vite, Tailwind CSS, and shadcn/ui components. Uses Supabase for backend (PostgreSQL) and authentication.
 
 ## Build/Lint/Test Commands
 
@@ -32,19 +32,18 @@ src/
 ├── components/
 │   ├── dashboard/     # App-specific components (TaskCard, TimelineView, etc.)
 │   └── ui/            # shadcn/ui primitives (Button, Card, Dialog, etc.)
-├── data/              # Repository layer (CRUD operations)
+├── data/              # Repository layer (Supabase CRUD operations)
 │   ├── taskRepository.ts
 │   ├── eventRepository.ts
 │   └── energyRepository.ts
 ├── services/          # Business logic services
 │   ├── capacityService.ts
 │   └── scheduleService.ts
-├── hooks/             # React hooks (useTasks, use-mobile, etc.)
-├── pages/             # Route components (Index, NotFound)
-├── types/             # TypeScript interfaces (task.ts)
+├── hooks/             # React hooks (useTasks, useAuth, use-mobile, etc.)
+├── pages/             # Route components (Index, Auth, NotFound)
+├── types/             # TypeScript interfaces (task.ts, supabase.ts)
 ├── utils/             # Pure utility functions (time, energy, autoSchedule)
-├── db/                # Dexie database setup
-├── lib/               # Shared utilities (cn for classnames)
+├── lib/               # Supabase client, shared utilities (cn)
 └── test/              # Test setup files
 ```
 
@@ -153,12 +152,20 @@ describe('ComponentName', () => {
 | Purpose | File |
 |---------|------|
 | Main hook | `src/hooks/useTasks.ts` |
-| Database | `src/db/database.ts` |
+| Auth hook | `src/hooks/useAuth.tsx` |
+| Supabase client | `src/lib/supabase.ts` |
 | Types | `src/types/task.ts` |
+| DB types | `src/types/supabase.ts` |
 | CSS vars | `src/index.css` |
 | Tailwind config | `tailwind.config.ts` |
 | Vite config | `vite.config.ts` |
 | Test setup | `src/test/setup.ts` |
+
+## Environment Variables
+
+Required for Supabase connection:
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key
 
 ## Do NOT
 

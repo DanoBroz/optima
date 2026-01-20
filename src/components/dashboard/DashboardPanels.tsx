@@ -13,6 +13,10 @@ type TaskActions = {
   defer: (id: string) => void;
   reschedule: (id: string, time: string) => void;
   autoSchedule: () => void;
+  autoScheduleSelected: (selectedIds: string[]) => Promise<{ scheduled: Task[]; unscheduled: Task[] }>;
+  autoScheduleBacklog: () => Promise<{ scheduled: Task[]; unscheduled: Task[] }>;
+  moveToBacklog: (id: string) => void;
+  toggleLock: (id: string) => void;
 };
 
 type EnergyActions = {
@@ -27,7 +31,7 @@ interface DashboardPanelsProps {
   events: CalendarEvent[];
   dailyEnergy: DailyEnergy | null;
   capacity: DayCapacity;
-  onLockToggle: (id: string) => void;
+  isScheduling: boolean;
   onEventClick: (event: CalendarEvent) => void;
   onOpenEventModal: () => void;
   onOpenSyncModal: () => void;
@@ -71,7 +75,7 @@ export function DashboardPanels({
   events,
   dailyEnergy,
   capacity,
-  onLockToggle,
+  isScheduling,
   onEventClick,
   onOpenEventModal,
   onOpenSyncModal,
@@ -98,6 +102,9 @@ export function DashboardPanels({
               onToggleTask={taskActions.toggle}
               onDeleteTask={taskActions.remove}
               onDeferTask={taskActions.defer}
+              onOptimizeSelected={taskActions.autoScheduleSelected}
+              onOptimizeAll={taskActions.autoScheduleBacklog}
+              isScheduling={isScheduling}
             />
           </div>
           {/* Calendar actions - under backlog */}
@@ -123,7 +130,8 @@ export function DashboardPanels({
                 onDeleteTask={taskActions.remove}
                 onDeferTask={taskActions.defer}
                 onRescheduleTask={taskActions.reschedule}
-                onLockToggle={onLockToggle}
+                onLockToggle={taskActions.toggleLock}
+                onMoveToBacklog={taskActions.moveToBacklog}
                 onEventClick={onEventClick}
               />
             </div>
@@ -140,6 +148,9 @@ export function DashboardPanels({
                 onToggleTask={taskActions.toggle}
                 onDeleteTask={taskActions.remove}
                 onDeferTask={taskActions.defer}
+                onOptimizeSelected={taskActions.autoScheduleSelected}
+                onOptimizeAll={taskActions.autoScheduleBacklog}
+                isScheduling={isScheduling}
               />
               {/* Calendar actions for mobile Tasks tab */}
               <CalendarActions 
@@ -177,7 +188,8 @@ export function DashboardPanels({
             onDeleteTask={taskActions.remove}
             onDeferTask={taskActions.defer}
             onRescheduleTask={taskActions.reschedule}
-            onLockToggle={onLockToggle}
+            onLockToggle={taskActions.toggleLock}
+            onMoveToBacklog={taskActions.moveToBacklog}
             onEventClick={onEventClick}
           />
         </div>

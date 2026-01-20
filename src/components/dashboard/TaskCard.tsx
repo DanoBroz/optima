@@ -1,4 +1,4 @@
-import { Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical } from 'lucide-react';
+import { Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical, Inbox } from 'lucide-react';
 import type { Task } from '@/types/task';
 import { cn } from '@/lib/utils';
 
@@ -8,8 +8,10 @@ interface TaskCardProps {
   onDelete: (id: string) => void;
   onDefer?: (id: string) => void;
   onLockToggle?: (id: string) => void;
+  onMoveToBacklog?: (id: string) => void;
   compact?: boolean;
   draggable?: boolean;
+  showCompletionToggle?: boolean;
 }
 
 const priorityColors = {
@@ -30,8 +32,10 @@ export function TaskCard({
   onDelete, 
   onDefer,
   onLockToggle,
+  onMoveToBacklog,
   compact = false, 
-  draggable = false 
+  draggable = false,
+  showCompletionToggle = true,
 }: TaskCardProps) {
   return (
     <div
@@ -57,20 +61,22 @@ export function TaskCard({
           </div>
         )}
         
-        {/* Checkbox */}
-        <button
-          onClick={() => onToggle(task.id)}
-          className={cn(
-            "flex-shrink-0 w-5 h-5 rounded-lg border-2 transition-all duration-200 flex items-center justify-center mt-0.5",
-            task.completed
-              ? "bg-success border-success"
-              : "border-border hover:border-primary"
-          )}
-        >
-          {task.completed && (
-            <Check className="w-3 h-3 text-success-foreground" strokeWidth={3} />
-          )}
-        </button>
+        {/* Checkbox - only show if showCompletionToggle is true */}
+        {showCompletionToggle && (
+          <button
+            onClick={() => onToggle(task.id)}
+            className={cn(
+              "flex-shrink-0 w-5 h-5 rounded-lg border-2 transition-all duration-200 flex items-center justify-center mt-0.5",
+              task.completed
+                ? "bg-success border-success"
+                : "border-border hover:border-primary"
+            )}
+          >
+            {task.completed && (
+              <Check className="w-3 h-3 text-success-foreground" strokeWidth={3} />
+            )}
+          </button>
+        )}
 
         {/* Content */}
         <div className="flex-1 min-w-0">
@@ -119,6 +125,16 @@ export function TaskCard({
 
         {/* Actions */}
         <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {onMoveToBacklog && !task.completed && task.scheduled_time && (
+            <button
+              onClick={() => onMoveToBacklog(task.id)}
+              className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+              title="Move to backlog"
+            >
+              <Inbox className="w-4 h-4" />
+            </button>
+          )}
+          
           {onLockToggle && (
             <button
               onClick={() => onLockToggle(task.id)}

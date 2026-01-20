@@ -55,7 +55,7 @@ describe('DashboardPanels', () => {
         events={[buildEvent()]}
         dailyEnergy={baseEnergy}
         capacity={baseCapacity}
-        onLockToggle={vi.fn()}
+        isScheduling={false}
         onEventClick={vi.fn()}
         onOpenEventModal={vi.fn()}
         onOpenSyncModal={vi.fn()}
@@ -65,6 +65,10 @@ describe('DashboardPanels', () => {
           defer: vi.fn(),
           reschedule: vi.fn(),
           autoSchedule: vi.fn(),
+          autoScheduleSelected: vi.fn().mockResolvedValue({ scheduled: [], unscheduled: [] }),
+          autoScheduleBacklog: vi.fn().mockResolvedValue({ scheduled: [], unscheduled: [] }),
+          moveToBacklog: vi.fn(),
+          toggleLock: vi.fn(),
         }}
         energyActions={{
           setLevel: vi.fn(),
