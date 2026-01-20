@@ -35,6 +35,19 @@ vi.mock('@/data/energyRepository', () => ({
   },
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'user-1' },
+    session: null,
+    loading: false,
+    signInWithEmail: vi.fn(),
+    signUpWithEmail: vi.fn(),
+    signInWithGoogle: vi.fn(),
+    signInWithGitHub: vi.fn(),
+    signOut: vi.fn(),
+  }),
+}));
+
 const baseTask = (overrides: Partial<Task> = {}): Task => ({
   id: 'task-1',
   title: 'Task',

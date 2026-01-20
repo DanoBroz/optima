@@ -4,6 +4,7 @@ export type AvailabilityPreset = 'any' | 'morning' | 'afternoon' | 'evening';
 
 export interface Task {
   id: string;
+  user_id?: string;
   title: string;
   description?: string | null;
   completed: boolean;
@@ -22,6 +23,7 @@ export interface Task {
 
 export interface DailyEnergy {
   id: string;
+  user_id?: string;
   date: string;
   energy_level: DailyEnergyLevel;
   notes?: string | null;
@@ -31,6 +33,7 @@ export interface DailyEnergy {
 
 export interface CalendarEvent {
   id: string;
+  user_id?: string;
   title: string;
   start_time: string;
   end_time: string;

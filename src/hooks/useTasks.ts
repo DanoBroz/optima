@@ -8,12 +8,14 @@ import { energyRepository } from '@/data/energyRepository';
 import { scheduleService } from '@/services/scheduleService';
 import { calculateCapacity } from '@/services/capacityService';
 import { getDayTimeRange } from '@/utils/time';
+import { useAuth } from '@/hooks/useAuth';
 
 const DEFAULT_DAILY_ENERGY: DailyEnergyLevel = 'medium';
 
 const createTimestamp = () => new Date().toISOString();
 
 export function useTasks(selectedDate: Date = new Date()) {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [dailyEnergy, setDailyEnergy] = useState<DailyEnergy | null>(null);
@@ -67,10 +69,16 @@ export function useTasks(selectedDate: Date = new Date()) {
   }, [fetchTasks, fetchEvents, fetchDailyEnergy]);
 
   const setDailyEnergyLevel = async (level: DailyEnergyLevel, notes?: string) => {
+    if (!user) {
+      toast.error('Please sign in to update energy');
+      return;
+    }
+
     try {
       const timestamp = createTimestamp();
       const energyData: DailyEnergy = {
         id: self.crypto.randomUUID(),
+        user_id: user.id,
         date: dateStr,
         energy_level: level,
         notes: notes || null,
@@ -100,11 +108,17 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
+    if (!user) {
+      toast.error('Please sign in to create tasks');
+      return;
+    }
+
     try {
       const timestamp = createTimestamp();
       const newTask: Task = {
         ...task,
         id: self.crypto.randomUUID(),
+        user_id: user.id,
         created_at: timestamp,
         updated_at: timestamp,
       };
@@ -119,6 +133,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const toggleTask = async (id: string) => {
+    if (!user) {
+      toast.error('Please sign in to update tasks');
+      return;
+    }
+
     const task = tasks.find(item => item.id === id);
     if (!task) return;
 
@@ -134,6 +153,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const deleteTask = async (id: string) => {
+    if (!user) {
+      toast.error('Please sign in to delete tasks');
+      return;
+    }
+
     try {
       await taskRepository.remove(id);
       setTasks(prev => prev.filter(task => task.id !== id));
@@ -145,6 +169,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
+    if (!user) {
+      toast.error('Please sign in to update tasks');
+      return;
+    }
+
     try {
       await taskRepository.update(id, {
         ...updates,
@@ -159,6 +188,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const rescheduleTask = async (id: string, time: string, date?: string) => {
+    if (!user) {
+      toast.error('Please sign in to reschedule tasks');
+      return;
+    }
+
     await updateTask(id, {
       scheduled_time: time,
       scheduled_date: date || dateStr,
@@ -167,6 +201,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const deferTask = async (id: string) => {
+    if (!user) {
+      toast.error('Please sign in to defer tasks');
+      return;
+    }
+
     const tomorrow = new Date(selectedDate);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
@@ -180,6 +219,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const autoSchedule = async () => {
+    if (!user) {
+      toast.error('Please sign in to schedule tasks');
+      return;
+    }
+
     setIsScheduling(true);
     try {
       const unscheduledTasks = tasks.filter(task => !task.scheduled_time && !task.completed);
@@ -210,11 +254,17 @@ export function useTasks(selectedDate: Date = new Date()) {
   const addEvent = async (
     event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>
   ) => {
+    if (!user) {
+      toast.error('Please sign in to add events');
+      return;
+    }
+
     try {
       const timestamp = createTimestamp();
       const newEvent: CalendarEvent = {
         ...event,
         id: self.crypto.randomUUID(),
+        user_id: user.id,
         created_at: timestamp,
         updated_at: timestamp,
       };
@@ -229,6 +279,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const updateEvent = async (id: string, updates: Partial<CalendarEvent>) => {
+    if (!user) {
+      toast.error('Please sign in to update events');
+      return;
+    }
+
     try {
       await eventRepository.update(id, {
         ...updates,
@@ -244,6 +299,11 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const deleteEvent = async (id: string) => {
+    if (!user) {
+      toast.error('Please sign in to delete events');
+      return;
+    }
+
     try {
       await eventRepository.remove(id);
       setEvents(prev => prev.filter(event => event.id !== id));
@@ -257,11 +317,17 @@ export function useTasks(selectedDate: Date = new Date()) {
   const importEvents = async (
     eventsToImport: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[]
   ) => {
+    if (!user) {
+      toast.error('Please sign in to import events');
+      return;
+    }
+
     try {
       const timestamp = createTimestamp();
       const newEvents: CalendarEvent[] = eventsToImport.map(event => ({
         ...event,
         id: self.crypto.randomUUID(),
+        user_id: user.id,
         created_at: timestamp,
         updated_at: timestamp,
       }));

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 // Convert DB row to app CalendarEvent type
 const toEvent = (row: EventRow): CalendarEvent => ({
   id: row.id,
+  user_id: row.user_id,
   title: row.title,
   start_time: row.start_time,
   end_time: row.end_time,
@@ -32,6 +33,7 @@ export const eventRepository = {
   async add(event: CalendarEvent): Promise<void> {
     const insertData: EventInsert = {
       id: event.id,
+      user_id: event.user_id,
       title: event.title,
       start_time: event.start_time,
       end_time: event.end_time,
@@ -70,6 +72,7 @@ export const eventRepository = {
 
     const insertData: EventInsert[] = events.map((event) => ({
       id: event.id,
+      user_id: event.user_id,
       title: event.title,
       start_time: event.start_time,
       end_time: event.end_time,

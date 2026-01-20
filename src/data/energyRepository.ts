@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 // Convert DB row to app DailyEnergy type
 const toEnergy = (row: EnergyRow): DailyEnergy => ({
   id: row.id,
+  user_id: row.user_id,
   date: row.date,
   energy_level: row.energy_level,
   notes: row.notes,
@@ -27,6 +28,7 @@ export const energyRepository = {
   async add(entry: DailyEnergy): Promise<void> {
     const insertData: EnergyInsert = {
       id: entry.id,
+      user_id: entry.user_id,
       date: entry.date,
       energy_level: entry.energy_level,
       notes: entry.notes,

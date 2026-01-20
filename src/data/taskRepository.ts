@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 // Convert DB row to app Task type (they're compatible, just need user_id handling)
 const toTask = (row: TaskRow): Task => ({
   id: row.id,
+  user_id: row.user_id,
   title: row.title,
   description: row.description,
   completed: row.completed,
@@ -35,6 +36,7 @@ export const taskRepository = {
   async add(task: Task): Promise<void> {
     const insertData: TaskInsert = {
       id: task.id,
+      user_id: task.user_id,
       title: task.title,
       description: task.description,
       completed: task.completed,
