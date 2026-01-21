@@ -327,24 +327,77 @@ function parseICSDateTime(line: string): string | null {
   // DTSTART;VALUE=DATE:20240115
   // DTSTART;TZID=America/New_York:20240115T090000
 
-  const match = line.match(/[:;](\d{8}T?\d{0,6}Z?)/);
-  if (!match) return null;
+  // Extract timezone if present
+  const tzMatch = line.match(/TZID=([^:;]+)/);
+  const timezone = tzMatch ? tzMatch[1] : null;
 
-  const dateStr = match[1];
+  // Extract datetime value (after the last colon)
+  const colonIndex = line.lastIndexOf(':');
+  if (colonIndex === -1) return null;
 
-  // Format: YYYYMMDDTHHmmssZ or YYYYMMDD
-  const year = dateStr.substring(0, 4);
-  const month = dateStr.substring(4, 6);
-  const day = dateStr.substring(6, 8);
+  const dateStr = line.substring(colonIndex + 1).trim();
+  if (!/^\d{8}/.test(dateStr)) return null;
 
-  let time = '00:00:00';
+  // Parse date components
+  const year = parseInt(dateStr.substring(0, 4));
+  const month = parseInt(dateStr.substring(4, 6)) - 1; // 0-indexed for Date
+  const day = parseInt(dateStr.substring(6, 8));
+
+  let hour = 0, minute = 0, second = 0;
   if (dateStr.includes('T')) {
-    const hour = dateStr.substring(9, 11);
-    const minute = dateStr.substring(11, 13);
-    const second = dateStr.substring(13, 15) || '00';
-    time = `${hour}:${minute}:${second}`;
+    hour = parseInt(dateStr.substring(9, 11)) || 0;
+    minute = parseInt(dateStr.substring(11, 13)) || 0;
+    second = parseInt(dateStr.substring(13, 15)) || 0;
   }
 
-  // Return ISO format
-  return `${year}-${month}-${day}T${time}Z`;
+  // If already UTC (ends with Z), create UTC date directly
+  if (dateStr.endsWith('Z')) {
+    return new Date(Date.UTC(year, month, day, hour, minute, second)).toISOString();
+  }
+
+  // If timezone specified, convert from that timezone to UTC
+  if (timezone) {
+    try {
+      // Create a date string and use Intl to determine the UTC offset
+      const localDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+
+      // Get the UTC time by calculating the timezone offset
+      const tempDate = new Date(localDateStr + 'Z'); // Treat as UTC temporarily
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+
+      // Format the UTC time in the target timezone to find the offset
+      const parts = formatter.formatToParts(tempDate);
+      const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+
+      const tzYear = parseInt(getPart('year'));
+      const tzMonth = parseInt(getPart('month')) - 1;
+      const tzDay = parseInt(getPart('day'));
+      const tzHour = parseInt(getPart('hour'));
+      const tzMinute = parseInt(getPart('minute'));
+      const tzSecond = parseInt(getPart('second'));
+
+      // Calculate offset: how much the timezone differs from UTC
+      const utcMs = Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond);
+      const offsetMs = utcMs - tempDate.getTime();
+
+      // Apply the inverse offset to get the correct UTC time
+      const correctUtcMs = Date.UTC(year, month, day, hour, minute, second) - offsetMs;
+      return new Date(correctUtcMs).toISOString();
+    } catch {
+      // Fallback: treat as local timezone if timezone is invalid
+      return new Date(year, month, day, hour, minute, second).toISOString();
+    }
+  }
+
+  // No timezone: treat as local timezone (all-day events or floating time)
+  return new Date(year, month, day, hour, minute, second).toISOString();
 }
