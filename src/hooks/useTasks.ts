@@ -414,6 +414,40 @@ export function useTasks(selectedDate: Date = new Date()) {
     toast.success('Task moved to backlog');
   };
 
+  const scheduleToToday = async (id: string) => {
+    if (!user) {
+      toast.error('Please sign in to schedule tasks');
+      return;
+    }
+
+    const task = tasks.find(item => item.id === id);
+    if (!task) return;
+
+    if (task.completed) {
+      toast.error('Cannot schedule completed tasks');
+      return;
+    }
+
+    const nextSlot = scheduleService.findNextSlot(
+      dateStr,
+      task.duration,
+      task.availability_windows,
+      events,
+      tasks
+    );
+
+    if (nextSlot) {
+      await updateTask(id, {
+        scheduled_time: nextSlot,
+        scheduled_date: dateStr,
+        is_locked: false,
+      });
+      toast.success('Task scheduled for today');
+    } else {
+      toast.error('No available slot today');
+    }
+  };
+
   const toggleLock = async (id: string) => {
     if (!user) {
       toast.error('Please sign in to update tasks');
@@ -735,6 +769,7 @@ export function useTasks(selectedDate: Date = new Date()) {
         autoScheduleSelected,
         autoScheduleBacklog,
         moveToBacklog,
+        scheduleToToday,
         toggleLock,
       },
       event: {

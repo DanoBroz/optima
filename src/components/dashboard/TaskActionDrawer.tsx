@@ -5,6 +5,7 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import {
+  Calendar,
   Check,
   Pencil,
   ArrowRight,
@@ -28,7 +29,10 @@ interface TaskActionDrawerProps {
   onDefer?: (id: string) => void;
   onLockToggle?: (id: string) => void;
   onMoveToBacklog?: (id: string) => void;
+  onScheduleToToday?: (id: string) => void;
   onEdit?: (id: string) => void;
+  /** Context determines which actions to show. Defaults to 'timeline' */
+  context?: 'timeline' | 'backlog';
 }
 
 const priorityIndicators = {
@@ -52,7 +56,9 @@ export function TaskActionDrawer({
   onDefer,
   onLockToggle,
   onMoveToBacklog,
+  onScheduleToToday,
   onEdit,
+  context = 'timeline',
 }: TaskActionDrawerProps) {
   if (!task) return null;
 
@@ -159,8 +165,8 @@ export function TaskActionDrawer({
             />
           )}
 
-          {/* Defer */}
-          {onDefer && !task.completed && (
+          {/* Defer - only for timeline (scheduled tasks) */}
+          {context === 'timeline' && onDefer && !task.completed && (
             <ActionButton
               icon={<ArrowRight />}
               label="Tomorrow"
@@ -168,8 +174,8 @@ export function TaskActionDrawer({
             />
           )}
 
-          {/* Lock/Unlock */}
-          {onLockToggle && !task.completed && (
+          {/* Lock/Unlock - only for timeline (scheduled tasks) */}
+          {context === 'timeline' && onLockToggle && !task.completed && (
             <ActionButton
               icon={task.is_locked ? <Unlock /> : <Lock />}
               label={task.is_locked ? 'Unlock' : 'Lock'}
@@ -177,8 +183,18 @@ export function TaskActionDrawer({
             />
           )}
 
-          {/* Move to Backlog */}
-          {onMoveToBacklog && !task.completed && task.scheduled_time && (
+          {/* Schedule to Today - only for backlog context */}
+          {context === 'backlog' && onScheduleToToday && !task.completed && !task.scheduled_time && (
+            <ActionButton
+              icon={<Calendar />}
+              label="Schedule"
+              onClick={() => handleAction(() => onScheduleToToday(task.id))}
+              variant="primary"
+            />
+          )}
+
+          {/* Move to Backlog - only for timeline context */}
+          {context === 'timeline' && onMoveToBacklog && !task.completed && task.scheduled_time && (
             <ActionButton
               icon={<Inbox />}
               label="Backlog"

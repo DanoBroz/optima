@@ -3,6 +3,7 @@ import type { CalendarEvent, DayCapacity, DailyEnergy, DayIntention, Task } from
 import type { TaskChange } from '@/hooks/useDraft';
 import { DailyEnergySelector } from '@/components/dashboard/DailyEnergySelector';
 import { TaskList } from '@/components/dashboard/TaskList';
+import { MobileBacklogList } from '@/components/dashboard/MobileBacklogList';
 import { StatsBar } from '@/components/dashboard/StatsBar';
 import { TimelineView } from '@/components/dashboard/TimelineView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -25,6 +26,7 @@ type TaskActions = {
   autoScheduleSelected: (selectedIds: string[]) => Promise<{ scheduled: Task[]; unscheduled: Task[] }>;
   autoScheduleBacklog: () => Promise<{ scheduled: Task[]; unscheduled: Task[] }>;
   moveToBacklog: (id: string) => void;
+  scheduleToToday: (id: string) => void;
   toggleLock: (id: string) => void;
   edit: (id: string) => void;
 };
@@ -175,9 +177,8 @@ export function DashboardPanels({
               tasks={unscheduledTasks}
               onToggleTask={taskActions.toggle}
               onDeleteTask={taskActions.remove}
-              onDeferTask={taskActions.defer}
               onEditTask={taskActions.edit}
-              onOptimizeSelected={taskActions.autoScheduleSelected}
+              onScheduleToToday={taskActions.scheduleToToday}
               onOptimizeAll={taskActions.autoScheduleBacklog}
               isScheduling={isScheduling}
               draftUnscheduledTasks={draftMode?.isActive ? draftMode.unscheduledTasks : undefined}
@@ -243,18 +244,16 @@ export function DashboardPanels({
           )}
           {activeTab === 'backlog' && (
             <div className="flex-1 space-y-4 animate-fade-in overflow-y-auto pb-24">
-              <TaskList
+              <MobileBacklogList
                 tasks={unscheduledTasks}
                 onToggleTask={taskActions.toggle}
                 onDeleteTask={taskActions.remove}
                 onDeferTask={taskActions.defer}
                 onEditTask={taskActions.edit}
-                onOptimizeSelected={taskActions.autoScheduleSelected}
+                onLockToggle={taskActions.toggleLock}
+                onScheduleToToday={taskActions.scheduleToToday}
                 onOptimizeAll={taskActions.autoScheduleBacklog}
                 isScheduling={isScheduling}
-                draftUnscheduledTasks={draftMode?.isActive ? draftMode.unscheduledTasks : undefined}
-                onScheduleUnscheduled={draftMode?.onScheduleUnscheduled}
-                onScheduleTomorrow={draftMode?.onScheduleTomorrow}
               />
               <CalendarActions
                 onOpenEventModal={onOpenEventModal}

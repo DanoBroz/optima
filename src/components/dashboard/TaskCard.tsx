@@ -1,4 +1,4 @@
-import { Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical, Inbox, ArrowUp, Sparkles, Pencil } from 'lucide-react';
+import { Calendar, Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical, Inbox, ArrowUp, Sparkles, Pencil } from 'lucide-react';
 import type { Task } from '@/types/task';
 import type { TaskChangeType } from '@/hooks/useDraft';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ interface TaskCardProps {
   onDefer?: (id: string) => void;
   onLockToggle?: (id: string) => void;
   onMoveToBacklog?: (id: string) => void;
+  onScheduleToToday?: (id: string) => void;
   onEdit?: (id: string) => void;
   compact?: boolean;
   draggable?: boolean;
@@ -41,6 +42,7 @@ export function TaskCard({
   onDefer,
   onLockToggle,
   onMoveToBacklog,
+  onScheduleToToday,
   onEdit,
   compact = false,
   draggable = false,
@@ -200,6 +202,16 @@ export function TaskCard({
                 title="Move to tomorrow"
               >
                 <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+
+            {onScheduleToToday && !task.completed && !task.scheduled_time && (
+              <button
+                onClick={() => onScheduleToToday(task.id)}
+                className="p-2 hover:bg-primary/10 rounded-xl text-muted-foreground hover:text-primary transition-colors"
+                title="Schedule for today"
+              >
+                <Calendar className="w-4 h-4" />
               </button>
             )}
 

@@ -1,5 +1,5 @@
 import { format, addDays, subDays } from 'date-fns';
-import { Plus, ChevronLeft, ChevronRight, Sparkles, Sun, Moon, Settings } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Sparkles, Sun, Moon, Monitor, Settings } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 interface HeaderProps {
@@ -24,9 +24,33 @@ export function Header({
   const dateStr = format(selectedDate, 'MMM d');
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
+  // Get actual system preference
+  const getSystemPreference = () =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+
+  // Smart theme cycling - first click from system gives opposite of what you see
+  // If system is dark: system → light → dark → system
+  // If system is light: system → dark → light → system
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    const systemIsDark = getSystemPreference() === 'dark';
+
+    if (systemIsDark) {
+      // Cycle: system → light → dark → system
+      if (theme === 'system') setTheme('light');
+      else if (theme === 'light') setTheme('dark');
+      else setTheme('system');
+    } else {
+      // Cycle: system → dark → light → system
+      if (theme === 'system') setTheme('dark');
+      else if (theme === 'dark') setTheme('light');
+      else setTheme('system');
+    }
   };
+
+  // Icon shows current mode
+  const ThemeIcon = theme === 'system' ? Monitor : theme === 'dark' ? Moon : Sun;
 
   return (
     <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl safe-area-inset-top">
@@ -89,12 +113,9 @@ export function Header({
               onClick={toggleTheme}
               className="flex items-center justify-center w-11 h-11 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-2xl transition-all duration-200 active:scale-95"
               aria-label="Toggle theme"
+              title={theme === 'system' ? 'System theme' : theme === 'dark' ? 'Dark theme' : 'Light theme'}
             >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
+              <ThemeIcon className="w-5 h-5" />
             </button>
 
             {/* Settings button */}

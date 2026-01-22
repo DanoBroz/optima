@@ -22,18 +22,16 @@ const buildTask = (overrides: Partial<Task> = {}): Task => ({
 });
 
 describe('TaskList', () => {
-  it('renders tasks and counts', () => {
+  it('renders tasks', () => {
     render(
       <TaskList
         tasks={[buildTask({ id: 'a' }), buildTask({ id: 'b', completed: true })]}
         onToggleTask={vi.fn()}
         onDeleteTask={vi.fn()}
-        onDeferTask={vi.fn()}
       />
     );
 
     expect(screen.getByText('Backlog')).toBeInTheDocument();
-    expect(screen.getByText('1/2')).toBeInTheDocument();
     expect(screen.getAllByText('Task title')).toHaveLength(2);
   });
 
@@ -43,7 +41,6 @@ describe('TaskList', () => {
         tasks={[]}
         onToggleTask={vi.fn()}
         onDeleteTask={vi.fn()}
-        onDeferTask={vi.fn()}
       />
     );
 
