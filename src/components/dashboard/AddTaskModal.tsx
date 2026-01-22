@@ -212,23 +212,27 @@ export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalP
                 Priority
               </label>
               <div className="flex gap-2">
-                {(['low', 'medium', 'high'] as const).map((p) => (
+                {([
+                  { value: 'low', marks: '!', color: 'text-muted-foreground' },
+                  { value: 'medium', marks: '!!', color: 'text-amber-500' },
+                  { value: 'high', marks: '!!!', color: 'text-destructive' },
+                ] as const).map((p) => (
                   <button
-                    key={p}
+                    key={p.value}
                     type="button"
-                    onClick={() => setPriority(p)}
+                    onClick={() => setPriority(p.value)}
                     className={cn(
-                      "flex-1 py-2.5 rounded-xl text-sm font-medium capitalize transition-all",
-                      priority === p
-                        ? p === 'high'
-                          ? "bg-primary text-primary-foreground"
-                          : p === 'medium'
-                          ? "bg-accent text-accent-foreground"
-                          : "bg-secondary text-secondary-foreground"
+                      "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                      priority === p.value
+                        ? p.value === 'high'
+                          ? "bg-destructive/15 text-destructive ring-2 ring-destructive/30"
+                          : p.value === 'medium'
+                          ? "bg-amber-500/15 text-amber-500 ring-2 ring-amber-500/30"
+                          : "bg-secondary text-muted-foreground ring-2 ring-border"
                         : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
                     )}
                   >
-                    {p}
+                    {p.marks}
                   </button>
                 ))}
               </div>

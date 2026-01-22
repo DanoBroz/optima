@@ -31,10 +31,10 @@ interface TaskActionDrawerProps {
   onEdit?: (id: string) => void;
 }
 
-const priorityColors = {
-  low: 'bg-muted-foreground/20',
-  medium: 'bg-amber-500',
-  high: 'bg-primary',
+const priorityIndicators = {
+  low: { marks: '!', color: 'text-muted-foreground' },
+  medium: { marks: '!!', color: 'text-amber-500 dark:text-amber-400' },
+  high: { marks: '!!!', color: 'text-destructive' },
 };
 
 const energyBadges = {
@@ -82,15 +82,17 @@ export function TaskActionDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="px-4 pb-8">
         <DrawerHeader className="text-left px-0">
-          <div className="flex items-start gap-3">
-            {/* Priority indicator */}
-            <div
-              className={cn(
-                'w-2 h-2 rounded-full mt-2 flex-shrink-0',
-                priorityColors[task.priority]
-              )}
-            />
-            <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              {/* Priority indicator - exclamation marks */}
+              <span
+                className={cn(
+                  'text-sm font-bold flex-shrink-0',
+                  priorityIndicators[task.priority].color
+                )}
+              >
+                {priorityIndicators[task.priority].marks}
+              </span>
               <DrawerTitle
                 className={cn(
                   'text-lg font-semibold',
@@ -99,6 +101,7 @@ export function TaskActionDrawer({
               >
                 {task.title}
               </DrawerTitle>
+            </div>
 
               {/* Meta info */}
               <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -134,7 +137,6 @@ export function TaskActionDrawer({
                   <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                 )}
               </div>
-            </div>
           </div>
         </DrawerHeader>
 

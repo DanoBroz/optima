@@ -22,10 +22,10 @@ interface TaskCardProps {
   originalTime?: string | null;
 }
 
-const priorityColors = {
-  low: 'bg-muted-foreground/20',
-  medium: 'bg-amber-500 dark:bg-amber-400',
-  high: 'bg-primary',
+const priorityIndicators = {
+  low: { marks: '!', color: 'text-muted-foreground' },
+  medium: { marks: '!!', color: 'text-amber-500 dark:text-amber-400' },
+  high: { marks: '!!!', color: 'text-destructive' },
 };
 
 const energyBadges = {
@@ -67,13 +67,7 @@ export function TaskCard({
         borderStyle
       )}
     >
-      {/* Priority indicator - dot style */}
-      <div className={cn(
-        "absolute top-3.5 left-3.5 w-2 h-2 rounded-full",
-        priorityColors[task.priority]
-      )} />
-
-      <div className="flex items-start gap-3 pl-4">
+      <div className="flex items-start gap-3">
         {/* Drag handle */}
         {draggable && (
           <div className="flex-shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors mt-0.5">
@@ -100,14 +94,23 @@ export function TaskCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <p
-            className={cn(
-              "font-semibold text-sm leading-snug transition-all duration-200",
-              task.completed && "line-through text-muted-foreground"
-            )}
-          >
-            {task.title}
-          </p>
+          <div className="flex items-center gap-1.5">
+            {/* Priority indicator - exclamation marks */}
+            <span className={cn(
+              "text-xs font-bold flex-shrink-0",
+              priorityIndicators[task.priority].color
+            )}>
+              {priorityIndicators[task.priority].marks}
+            </span>
+            <p
+              className={cn(
+                "font-semibold text-sm leading-snug transition-all duration-200",
+                task.completed && "line-through text-muted-foreground"
+              )}
+            >
+              {task.title}
+            </p>
+          </div>
 
           {/* Meta info */}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
