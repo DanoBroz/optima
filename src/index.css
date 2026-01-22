@@ -25,7 +25,7 @@
     --secondary-foreground: 25 20% 30%;
 
     --muted: 30 15% 93%;
-    --muted-foreground: 25 12% 50%;
+    --muted-foreground: 25 15% 40%;
 
     /* Warm terracotta accent */
     --accent: 25 60% 92%;
@@ -63,7 +63,7 @@
 
     --timeline-line: 30 15% 90%;
     --timeline-now: 20 80% 60%;
-    --task-completed: 25 10% 65%;
+    --task-completed: 25 12% 55%;
 
     --sidebar-background: 30 25% 97%;
     --sidebar-foreground: 25 20% 30%;
@@ -93,7 +93,7 @@
     --secondary-foreground: 30 15% 80%;
 
     --muted: 20 15% 18%;
-    --muted-foreground: 30 12% 50%;
+    --muted-foreground: 30 15% 65%;
 
     --accent: 22 35% 18%;
     --accent-foreground: 18 55% 65%;
@@ -126,7 +126,7 @@
 
     --timeline-line: 20 18% 22%;
     --timeline-now: 18 65% 50%;
-    --task-completed: 25 12% 45%;
+    --task-completed: 25 12% 55%;
 
     --sidebar-background: 20 25% 9%;
     --sidebar-foreground: 30 15% 80%;

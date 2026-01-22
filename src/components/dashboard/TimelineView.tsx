@@ -280,7 +280,7 @@ export function TimelineView({
             ? "border-[hsl(var(--tomorrow-foreground)/0.1)]"
             : "border-border/30",
           !isWorkHour && !isTomorrow && "bg-secondary/20",
-          isPast && "opacity-50",
+          isPast && "opacity-65",
           isDragOver && "bg-primary/10"
         )}
         onDragOver={(e) => handleDragOver(e, hour)}

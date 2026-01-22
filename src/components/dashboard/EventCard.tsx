@@ -19,10 +19,10 @@ export function EventCard({ event, onClick, onRestore }: EventCardProps) {
   const energyLevel = getEventEnergyLevel(event);
   const drain = getEventDrainMinutes(event);
   const energyConfig = {
-    restful: { emoji: '🌿', label: 'Restful', bg: 'bg-sky-100', border: 'border-sky-200', accent: 'text-sky-600' },
-    low: { emoji: '🧘', label: 'Light', bg: 'bg-success/10', border: 'border-success/20', accent: 'text-success' },
-    medium: { emoji: '💼', label: 'Normal', bg: 'bg-primary/10', border: 'border-primary/20', accent: 'text-primary' },
-    high: { emoji: '🔥', label: 'Draining', bg: 'bg-destructive/10', border: 'border-destructive/20', accent: 'text-destructive' },
+    restful: { emoji: '🌿', label: 'Restful', bg: 'bg-sky-100 dark:bg-sky-900/40', border: 'border-sky-200 dark:border-sky-700', accent: 'text-sky-700 dark:text-sky-300', title: 'text-sky-900 dark:text-sky-100' },
+    low: { emoji: '🧘', label: 'Light', bg: 'bg-success/10', border: 'border-success/20', accent: 'text-success', title: 'text-foreground' },
+    medium: { emoji: '💼', label: 'Normal', bg: 'bg-primary/10', border: 'border-primary/20', accent: 'text-primary', title: 'text-foreground' },
+    high: { emoji: '🔥', label: 'Draining', bg: 'bg-destructive/10', border: 'border-destructive/20', accent: 'text-destructive', title: 'text-foreground' },
   };
 
   const config = energyConfig[energyLevel];
@@ -83,7 +83,7 @@ export function EventCard({ event, onClick, onRestore }: EventCardProps) {
           </div>
           <p className={cn(
             "font-semibold text-sm truncate",
-            isDismissed && "text-muted-foreground"
+            isDismissed ? "text-muted-foreground" : config.title
           )}>{event.title}</p>
           {event.location && (
             <div className="flex items-center gap-1.5 mt-1.5 text-muted-foreground">
