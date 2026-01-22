@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import type { Task, CalendarEvent } from '@/types/task';
 import type { TaskChange, ChangesSummary } from '@/hooks/useDraft';
 import { TaskCard } from './TaskCard';
+import { SwipeableTaskCard } from './SwipeableTaskCard';
+import { TaskActionDrawer } from './TaskActionDrawer';
 import { EventCard } from './EventCard';
 import { GhostTaskCard } from './GhostTaskCard';
 import { DraftBar } from './DraftBar';
 import { cn } from '@/lib/utils';
 import { format, parse } from 'date-fns';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface GhostTask {
   task: Task;
@@ -85,6 +88,9 @@ export function TimelineView({
 }: TimelineViewProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
+  const [drawerTask, setDrawerTask] = useState<Task | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const isMobile = useIsMobile();
   const todayScrollRef = useRef<HTMLDivElement>(null);
   const tomorrowScrollRef = useRef<HTMLDivElement>(null);
   const nowIndicatorRef = useRef<HTMLDivElement>(null);
@@ -347,6 +353,36 @@ export function TimelineView({
               {hourTasks.map((task, index) => {
                 const change = draftMode ? draftChanges?.get(task.id) : undefined;
 
+                // Mobile: Use swipeable card with tap-to-open drawer
+                if (isMobile) {
+                  return (
+                    <div
+                      key={task.id}
+                      className="animate-slide-up"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <SwipeableTaskCard
+                        task={task}
+                        onToggle={onToggleTask}
+                        onDelete={onDeleteTask}
+                        onDefer={onDeferTask}
+                        onLockToggle={onLockToggle}
+                        onMoveToBacklog={!isTomorrow ? onMoveToBacklog : undefined}
+                        onEdit={onEditTask}
+                        onTap={() => {
+                          setDrawerTask(task);
+                          setDrawerOpen(true);
+                        }}
+                        compact
+                        hideActions={draftMode}
+                        changeType={change?.type}
+                        originalTime={change?.originalTime}
+                      />
+                    </div>
+                  );
+                }
+
+                // Desktop: Use standard card with drag-and-drop
                 return (
                   <div
                     key={task.id}
@@ -532,7 +568,7 @@ export function TimelineView({
               {tomorrowTasks.map((task) => {
                 const change = draftChanges?.get(task.id);
                 return (
-                  <TaskCard
+                  <SwipeableTaskCard
                     key={task.id}
                     task={task}
                     onToggle={onToggleTask}
@@ -540,6 +576,10 @@ export function TimelineView({
                     onDefer={onDeferTask}
                     onLockToggle={onLockToggle}
                     onEdit={onEditTask}
+                    onTap={() => {
+                      setDrawerTask(task);
+                      setDrawerOpen(true);
+                    }}
                     compact
                     hideActions={draftMode}
                     changeType={change?.type}
@@ -551,6 +591,19 @@ export function TimelineView({
           </div>
         )}
       </div>
+
+      {/* Task action drawer for mobile */}
+      <TaskActionDrawer
+        task={drawerTask}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onToggle={onToggleTask}
+        onDelete={onDeleteTask}
+        onDefer={onDeferTask}
+        onLockToggle={onLockToggle}
+        onMoveToBacklog={onMoveToBacklog}
+        onEdit={onEditTask}
+      />
     </div>
   );
 }
