@@ -7,6 +7,8 @@ interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (task: Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
+  /** If provided, modal switches to edit mode with pre-filled form */
+  editTask?: Task;
 }
 
 const motivationEmojis: Record<MotivationLevel, string> = {
@@ -19,7 +21,9 @@ const motivationEmojis: Record<MotivationLevel, string> = {
 
 const DRAG_THRESHOLD = 120;
 
-export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
+export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalProps) {
+  const isEditMode = !!editTask;
+
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('');
   const [duration, setDuration] = useState('30');
@@ -31,6 +35,28 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef(0);
   const handleRef = useRef<HTMLDivElement>(null);
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (editTask) {
+      setTitle(editTask.title);
+      setTime(editTask.scheduled_time || '');
+      setDuration(String(editTask.duration));
+      setPriority(editTask.priority);
+      setEnergyLevel(editTask.energy_level);
+      setMotivation(editTask.motivation_level);
+      setAvailabilityWindows(editTask.availability_windows || []);
+    } else {
+      // Reset form for add mode
+      setTitle('');
+      setTime('');
+      setDuration('30');
+      setPriority('medium');
+      setEnergyLevel('medium');
+      setMotivation('neutral');
+      setAvailabilityWindows([]);
+    }
+  }, [editTask]);
 
   // Track pointer on window for reliable drag
   useEffect(() => {
@@ -69,25 +95,18 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
 
     onAdd({
       title: title.trim(),
-      completed: false,
+      completed: editTask?.completed ?? false,
       scheduled_time: time || undefined,
-      scheduled_date: time ? new Date().toISOString().split('T')[0] : undefined,
+      scheduled_date: time ? (editTask?.scheduled_date || new Date().toISOString().split('T')[0]) : undefined,
       duration: parseInt(duration, 10),
       priority,
       energy_level: energyLevel,
       motivation_level: motivation,
       availability_windows: availabilityWindows,
-      is_locked: !!time,
-      order_index: 0
+      is_locked: editTask?.is_locked ?? !!time,
+      order_index: editTask?.order_index ?? 0,
     });
 
-    setTitle('');
-    setTime('');
-    setDuration('30');
-    setPriority('medium');
-    setEnergyLevel('medium');
-    setMotivation('neutral');
-    setAvailabilityWindows([]);
     onClose();
   };
 
@@ -127,7 +146,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-            <h2 className="text-lg font-semibold">New Task</h2>
+            <h2 className="text-lg font-semibold">{isEditMode ? 'Edit Task' : 'New Task'}</h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-secondary rounded-xl transition-colors"
@@ -310,7 +329,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
               disabled={!title.trim()}
               className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-card active:scale-[0.98]"
             >
-              Add Task
+              {isEditMode ? 'Save Changes' : 'Add Task'}
             </button>
           </form>
         </div>

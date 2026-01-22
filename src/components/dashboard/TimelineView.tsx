@@ -30,6 +30,7 @@ interface TimelineViewProps {
   onRescheduleTask: (id: string, time: string) => void;
   onLockToggle: (id: string) => void;
   onMoveToBacklog?: (id: string) => void;
+  onEditTask?: (id: string) => void;
   onEventClick?: (event: CalendarEvent) => void;
   onRestoreEvent?: (id: string) => void;
   /** Draft mode props */
@@ -71,6 +72,7 @@ export function TimelineView({
   onRescheduleTask,
   onLockToggle,
   onMoveToBacklog,
+  onEditTask,
   onEventClick,
   onRestoreEvent,
   draftMode = false,
@@ -362,8 +364,10 @@ export function TimelineView({
                       onDefer={onDeferTask}
                       onLockToggle={onLockToggle}
                       onMoveToBacklog={!isTomorrow ? onMoveToBacklog : undefined}
+                      onEdit={onEditTask}
                       compact
                       draggable={!isTomorrow}
+                      hideActions={draftMode}
                       changeType={change?.type}
                       originalTime={change?.originalTime}
                     />
@@ -518,7 +522,9 @@ export function TimelineView({
                     onDelete={onDeleteTask}
                     onDefer={onDeferTask}
                     onLockToggle={onLockToggle}
+                    onEdit={onEditTask}
                     compact
+                    hideActions={draftMode}
                     changeType={change?.type}
                     originalTime={change?.originalTime}
                   />

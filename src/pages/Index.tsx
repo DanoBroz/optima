@@ -40,6 +40,7 @@ const Index = () => {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
   const [pendingTask, setPendingTask] = useState<PendingTask | null>(null);
   const [pendingUnscheduledTasks, setPendingUnscheduledTasks] = useState<Task[]>([]);
@@ -152,7 +153,27 @@ const Index = () => {
     eventActions.update(id, { is_dismissed: false });
   };
 
+  const handleEditTask = (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      setEditingTask(task);
+      setIsTaskModalOpen(true);
+    }
+  };
+
+  const handleTaskModalClose = () => {
+    setIsTaskModalOpen(false);
+    setEditingTask(null);
+  };
+
   const handleAddTask = (task: Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    // Handle edit mode
+    if (editingTask) {
+      taskActions.update(editingTask.id, task);
+      handleTaskModalClose();
+      return;
+    }
+
     // Check if task has a time set and if it's in the past
     if (task.scheduled_time && scheduling.isTimeInPast(task.scheduled_time)) {
       setPendingTask({
@@ -417,12 +438,13 @@ const Index = () => {
           ...taskActions,
           autoScheduleSelected: handleOptimizeSelected,
           autoScheduleBacklog: handleOptimizeAll,
-          reschedule: draft.isActive 
+          reschedule: draft.isActive
             ? (id: string, time: string) => draft.updateProposedTime(id, time)
             : taskActions.reschedule,
           toggleLock: draft.isActive
             ? (id: string) => draft.toggleDraftLock(id)
             : taskActions.toggleLock,
+          edit: handleEditTask,
         }}
         energyActions={energyActions}
         intentionActions={intentionActions}
@@ -459,8 +481,9 @@ const Index = () => {
       {/* Modals */}
       <AddTaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
+        onClose={handleTaskModalClose}
         onAdd={handleAddTask}
+        editTask={editingTask ?? undefined}
       />
       <AddEventModal
         isOpen={isEventModalOpen}

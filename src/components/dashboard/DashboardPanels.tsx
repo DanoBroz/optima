@@ -24,6 +24,7 @@ type TaskActions = {
   autoScheduleBacklog: () => Promise<{ scheduled: Task[]; unscheduled: Task[] }>;
   moveToBacklog: (id: string) => void;
   toggleLock: (id: string) => void;
+  edit: (id: string) => void;
 };
 
 type EnergyActions = {
@@ -151,6 +152,7 @@ export function DashboardPanels({
               onToggleTask={taskActions.toggle}
               onDeleteTask={taskActions.remove}
               onDeferTask={taskActions.defer}
+              onEditTask={taskActions.edit}
               onOptimizeSelected={taskActions.autoScheduleSelected}
               onOptimizeAll={taskActions.autoScheduleBacklog}
               isScheduling={isScheduling}
@@ -184,6 +186,7 @@ export function DashboardPanels({
                 onRescheduleTask={taskActions.reschedule}
                 onLockToggle={taskActions.toggleLock}
                 onMoveToBacklog={taskActions.moveToBacklog}
+                onEditTask={taskActions.edit}
                 onEventClick={onEventClick}
                 onRestoreEvent={onRestoreEvent}
                 draftMode={draftMode?.isActive}
@@ -220,6 +223,7 @@ export function DashboardPanels({
                 onToggleTask={taskActions.toggle}
                 onDeleteTask={taskActions.remove}
                 onDeferTask={taskActions.defer}
+                onEditTask={taskActions.edit}
                 onOptimizeSelected={taskActions.autoScheduleSelected}
                 onOptimizeAll={taskActions.autoScheduleBacklog}
                 isScheduling={isScheduling}
@@ -241,6 +245,7 @@ export function DashboardPanels({
                 onToggleTask={taskActions.toggle}
                 onDeleteTask={taskActions.remove}
                 onDeferTask={taskActions.defer}
+                onEditTask={taskActions.edit}
                 title="All Tasks"
               />
               {/* Calendar actions for mobile All tab */}
@@ -265,6 +270,7 @@ export function DashboardPanels({
             onRescheduleTask={taskActions.reschedule}
             onLockToggle={taskActions.toggleLock}
             onMoveToBacklog={taskActions.moveToBacklog}
+            onEditTask={taskActions.edit}
             onEventClick={onEventClick}
             onRestoreEvent={onRestoreEvent}
             draftMode={draftMode?.isActive}

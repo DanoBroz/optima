@@ -9,6 +9,7 @@ interface TaskListProps {
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onDeferTask: (id: string) => void;
+  onEditTask?: (id: string) => void;
   onOptimizeSelected?: (selectedIds: string[]) => Promise<{ scheduled: Task[]; unscheduled: Task[] }>;
   onOptimizeAll?: () => Promise<{ scheduled: Task[]; unscheduled: Task[] }>;
   isScheduling?: boolean;
@@ -21,11 +22,12 @@ interface TaskListProps {
   onScheduleTomorrow?: (taskId: string) => void;
 }
 
-export function TaskList({ 
-  tasks, 
-  onToggleTask, 
-  onDeleteTask, 
+export function TaskList({
+  tasks,
+  onToggleTask,
+  onDeleteTask,
   onDeferTask,
+  onEditTask,
   onOptimizeSelected,
   onOptimizeAll,
   isScheduling = false,
@@ -249,6 +251,7 @@ export function TaskList({
                   onToggle={onToggleTask}
                   onDelete={onDeleteTask}
                   onDefer={onDeferTask}
+                  onEdit={onEditTask}
                   draggable
                   showCompletionToggle={false}
                 />

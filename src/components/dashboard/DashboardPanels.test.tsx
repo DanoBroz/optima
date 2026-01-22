@@ -70,6 +70,7 @@ describe('DashboardPanels', () => {
           autoScheduleBacklog: vi.fn().mockResolvedValue({ scheduled: [], unscheduled: [] }),
           moveToBacklog: vi.fn(),
           toggleLock: vi.fn(),
+          edit: vi.fn(),
         }}
         energyActions={{
           setLevel: vi.fn(),

@@ -1,4 +1,4 @@
-import { Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical, Inbox, ArrowUp, Sparkles } from 'lucide-react';
+import { Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical, Inbox, ArrowUp, Sparkles, Pencil } from 'lucide-react';
 import type { Task } from '@/types/task';
 import type { TaskChangeType } from '@/hooks/useDraft';
 import { cn } from '@/lib/utils';
@@ -10,9 +10,12 @@ interface TaskCardProps {
   onDefer?: (id: string) => void;
   onLockToggle?: (id: string) => void;
   onMoveToBacklog?: (id: string) => void;
+  onEdit?: (id: string) => void;
   compact?: boolean;
   draggable?: boolean;
   showCompletionToggle?: boolean;
+  /** Hide all action buttons (used in draft mode) */
+  hideActions?: boolean;
   /** Draft mode change indicator */
   changeType?: TaskChangeType;
   /** Original time for moved tasks (shown as "from HH:MM") */
@@ -31,16 +34,18 @@ const energyBadges = {
   high: { bg: 'bg-primary/15', text: 'text-primary' },
 };
 
-export function TaskCard({ 
-  task, 
-  onToggle, 
-  onDelete, 
+export function TaskCard({
+  task,
+  onToggle,
+  onDelete,
   onDefer,
   onLockToggle,
   onMoveToBacklog,
-  compact = false, 
+  onEdit,
+  compact = false,
   draggable = false,
   showCompletionToggle = true,
+  hideActions = false,
   changeType,
   originalTime,
 }: TaskCardProps) {
@@ -152,45 +157,57 @@ export function TaskCard({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {onMoveToBacklog && !task.completed && task.scheduled_time && (
+        {/* Actions - hidden in draft mode */}
+        {!hideActions && (
+          <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {onMoveToBacklog && !task.completed && task.scheduled_time && (
+              <button
+                onClick={() => onMoveToBacklog(task.id)}
+                className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                title="Move to backlog"
+              >
+                <Inbox className="w-4 h-4" />
+              </button>
+            )}
+
+            {onEdit && (
+              <button
+                onClick={() => onEdit(task.id)}
+                className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                title="Edit task"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+
+            {onLockToggle && !task.completed && (
+              <button
+                onClick={() => onLockToggle(task.id)}
+                className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                title={task.is_locked ? "Unlock time" : "Lock time"}
+              >
+                {task.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              </button>
+            )}
+
+            {onDefer && !task.completed && (
+              <button
+                onClick={() => onDefer(task.id)}
+                className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                title="Move to tomorrow"
+              >
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+
             <button
-              onClick={() => onMoveToBacklog(task.id)}
-              className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
-              title="Move to backlog"
+              onClick={() => onDelete(task.id)}
+              className="p-2 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-colors"
             >
-              <Inbox className="w-4 h-4" />
+              <Trash2 className="w-4 h-4" />
             </button>
-          )}
-          
-          {onLockToggle && (
-            <button
-              onClick={() => onLockToggle(task.id)}
-              className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
-              title={task.is_locked ? "Unlock time" : "Lock time"}
-            >
-              {task.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-            </button>
-          )}
-          
-          {onDefer && !task.completed && (
-            <button
-              onClick={() => onDefer(task.id)}
-              className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors"
-              title="Move to tomorrow"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
-          
-          <button
-            onClick={() => onDelete(task.id)}
-            className="p-2 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
