@@ -431,7 +431,7 @@ export function TimelineView({
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 md:overflow-hidden">
       {/* Desktop: Dual-pane layout */}
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Today's timeline */}
@@ -493,7 +493,7 @@ export function TimelineView({
       </div>
 
       {/* Mobile: Single timeline + tomorrow list below */}
-      <div className="md:hidden flex-1 overflow-y-auto scrollbar-hide">
+      <div className="md:hidden flex-1 min-h-0 overflow-y-auto scrollbar-hide">
         {/* DraftBar - sticky header for mobile (inside scroll container) */}
         {draftBarProps && (
           <DraftBar
@@ -516,13 +516,13 @@ export function TimelineView({
         )}
         
         {/* Today's timeline (existing) */}
-        <div className="pb-8">
+        <div className={hasTomorrowTasks ? "pb-8" : "pb-24"}>
           {renderTodayTimeline()}
         </div>
         
         {/* Tomorrow section */}
         {hasTomorrowTasks && (
-          <div className="border-t border-border/30 bg-[hsl(var(--tomorrow)/0.3)]">
+          <div className="border-t border-border/30 bg-[hsl(var(--tomorrow)/0.3)] pb-24">
             <div className="sticky top-0 z-10 bg-[hsl(var(--tomorrow)/0.8)] backdrop-blur-sm px-4 py-2 border-b border-[hsl(var(--tomorrow-foreground)/0.2)]">
               <span className="text-sm font-semibold text-[hsl(var(--tomorrow-foreground))]">
                 Tomorrow · {formatDateHeader(tomorrowDate)}

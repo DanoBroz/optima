@@ -26,7 +26,7 @@ import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { scheduleService } from '@/services/scheduleService';
 
-type TabType = 'timeline' | 'tasks' | 'all';
+type TabType = 'timeline' | 'today' | 'backlog';
 
 interface PendingTask {
   task: Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at'>;

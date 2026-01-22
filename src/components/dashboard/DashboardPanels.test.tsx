@@ -45,10 +45,10 @@ const baseCapacity: DayCapacity = {
 };
 
 describe('DashboardPanels', () => {
-  it('renders the tasks tab content', () => {
+  it('renders the today tab content', () => {
     render(
       <DashboardPanels
-        activeTab="tasks"
+        activeTab="today"
         scheduledTasks={[buildTask({ id: 'scheduled-1', scheduled_time: '09:00' })]}
         unscheduledTasks={[buildTask({ id: 'unscheduled-1' })]}
         tasks={[buildTask({ id: 'task-1' })]}

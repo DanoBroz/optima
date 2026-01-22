@@ -1,13 +1,15 @@
+import { useState } from 'react';
 import type { CalendarEvent, DayCapacity, DailyEnergy, DayIntention, Task } from '@/types/task';
 import type { TaskChange } from '@/hooks/useDraft';
 import { DailyEnergySelector } from '@/components/dashboard/DailyEnergySelector';
 import { TaskList } from '@/components/dashboard/TaskList';
 import { StatsBar } from '@/components/dashboard/StatsBar';
 import { TimelineView } from '@/components/dashboard/TimelineView';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { ChangesSummary } from '@/hooks/useDraft';
-import { CalendarPlus, RefreshCw } from 'lucide-react';
+import { CalendarPlus, RefreshCw, Calendar, Inbox } from 'lucide-react';
 
-type TabType = 'timeline' | 'tasks' | 'all';
+type TabType = 'timeline' | 'today' | 'backlog';
 
 interface GhostTask {
   task: Task;
@@ -121,32 +123,54 @@ export function DashboardPanels({
   intentionActions,
   draftMode,
 }: DashboardPanelsProps) {
+  const [sidebarTab, setSidebarTab] = useState<'today' | 'backlog'>('today');
+
   // In draft mode, use the proposed tasks from draft instead of actual scheduled tasks
-  const displayTasks = draftMode?.isActive && draftMode.unscheduledTasks 
+  const displayTasks = draftMode?.isActive && draftMode.unscheduledTasks
     ? scheduledTasks // In draft mode, scheduledTasks will be the proposed tasks passed from Index
     : scheduledTasks;
 
   return (
     <main className="flex-1 flex flex-col md:flex-row gap-5 md:gap-8 container py-2 md:py-6 pb-28 md:pb-6 md:overflow-hidden">
-      {/* Desktop sidebar - sticky */}
-      <aside className="hidden md:block w-[340px] flex-shrink-0 h-full overflow-y-auto scrollbar-hide">
-        <div className="sticky top-0 flex flex-col gap-5">
-          <div className="animate-slide-up" style={{ animationDelay: '50ms' }}>
+      {/* Desktop sidebar - tabbed */}
+      <aside className="hidden md:block w-[340px] flex-shrink-0 h-full">
+        <Tabs
+          value={sidebarTab}
+          onValueChange={(v) => setSidebarTab(v as 'today' | 'backlog')}
+          className="flex flex-col"
+        >
+          <TabsList className="w-full grid grid-cols-2 h-11 p-1 bg-secondary/50 rounded-2xl mb-4">
+            <TabsTrigger
+              value="today"
+              className="flex items-center justify-center gap-2 rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <Calendar className="w-4 h-4" />
+              Today
+            </TabsTrigger>
+            <TabsTrigger
+              value="backlog"
+              className="flex items-center justify-center gap-2 rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <Inbox className="w-4 h-4" />
+              Backlog
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="today" className="flex flex-col gap-5 mt-0 animate-fade-in">
             <DailyEnergySelector
               currentLevel={dailyEnergy?.energy_level || null}
               onSelect={energyActions.setLevel}
             />
-          </div>
-          <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <StatsBar 
-              tasks={tasks} 
-              capacity={capacity} 
+            <StatsBar
+              tasks={tasks}
+              capacity={capacity}
               energyLevel={dailyEnergy?.energy_level}
               dayIntention={dayIntention}
               onIntentionChange={intentionActions.set}
             />
-          </div>
-          <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+          </TabsContent>
+
+          <TabsContent value="backlog" className="flex flex-col gap-5 mt-0 animate-fade-in">
             <TaskList
               tasks={unscheduledTasks}
               onToggleTask={taskActions.toggle}
@@ -160,15 +184,12 @@ export function DashboardPanels({
               onScheduleUnscheduled={draftMode?.onScheduleUnscheduled}
               onScheduleTomorrow={draftMode?.onScheduleTomorrow}
             />
-          </div>
-          {/* Calendar actions - under backlog */}
-          <div className="animate-slide-up" style={{ animationDelay: '250ms' }}>
-            <CalendarActions 
-              onOpenEventModal={onOpenEventModal} 
-              onOpenSyncModal={onOpenSyncModal} 
+            <CalendarActions
+              onOpenEventModal={onOpenEventModal}
+              onOpenSyncModal={onOpenSyncModal}
             />
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </aside>
 
       {/* Main content area */}
@@ -176,7 +197,7 @@ export function DashboardPanels({
         {/* Mobile views */}
         <div className="md:hidden flex flex-col flex-1 min-h-0">
           {activeTab === 'timeline' && (
-            <div className="flex-1 bg-card rounded-3xl shadow-card border border-border/30 overflow-hidden animate-fade-in">
+            <div className="flex-1 min-h-0 bg-card rounded-3xl shadow-card border border-border/30 animate-fade-in">
               <TimelineView
                 tasks={draftMode?.isActive ? (draftMode.todayTasks ?? displayTasks) : displayTasks}
                 events={events}
@@ -205,19 +226,23 @@ export function DashboardPanels({
               />
             </div>
           )}
-          {activeTab === 'tasks' && (
-            <div className="flex-1 space-y-4 animate-fade-in overflow-y-auto pb-4">
+          {activeTab === 'today' && (
+            <div className="flex-1 space-y-4 animate-fade-in overflow-y-auto pb-24">
               <DailyEnergySelector
                 currentLevel={dailyEnergy?.energy_level || null}
                 onSelect={energyActions.setLevel}
               />
-              <StatsBar 
-                tasks={tasks} 
-                capacity={capacity} 
+              <StatsBar
+                tasks={tasks}
+                capacity={capacity}
                 energyLevel={dailyEnergy?.energy_level}
                 dayIntention={dayIntention}
                 onIntentionChange={intentionActions.set}
               />
+            </div>
+          )}
+          {activeTab === 'backlog' && (
+            <div className="flex-1 space-y-4 animate-fade-in overflow-y-auto pb-24">
               <TaskList
                 tasks={unscheduledTasks}
                 onToggleTask={taskActions.toggle}
@@ -231,30 +256,10 @@ export function DashboardPanels({
                 onScheduleUnscheduled={draftMode?.onScheduleUnscheduled}
                 onScheduleTomorrow={draftMode?.onScheduleTomorrow}
               />
-              {/* Calendar actions for mobile Tasks tab */}
-              <CalendarActions 
-                onOpenEventModal={onOpenEventModal} 
-                onOpenSyncModal={onOpenSyncModal} 
+              <CalendarActions
+                onOpenEventModal={onOpenEventModal}
+                onOpenSyncModal={onOpenSyncModal}
               />
-            </div>
-          )}
-          {activeTab === 'all' && (
-            <div className="flex-1 animate-fade-in overflow-y-auto pb-4">
-              <TaskList
-                tasks={tasks}
-                onToggleTask={taskActions.toggle}
-                onDeleteTask={taskActions.remove}
-                onDeferTask={taskActions.defer}
-                onEditTask={taskActions.edit}
-                title="All Tasks"
-              />
-              {/* Calendar actions for mobile All tab */}
-              <div className="mt-4">
-                <CalendarActions 
-                  onOpenEventModal={onOpenEventModal} 
-                  onOpenSyncModal={onOpenSyncModal} 
-                />
-              </div>
             </div>
           )}
         </div>

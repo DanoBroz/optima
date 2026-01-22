@@ -1,7 +1,7 @@
-import { Calendar, CheckSquare, LayoutGrid, Sparkles, Plus } from 'lucide-react';
+import { Calendar, CalendarDays, Inbox, Sparkles, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type TabType = 'timeline' | 'tasks' | 'all';
+type TabType = 'timeline' | 'today' | 'backlog';
 
 interface TabBarProps {
   activeTab: TabType;
@@ -13,8 +13,8 @@ interface TabBarProps {
 
 const tabs = [
   { id: 'timeline' as const, label: 'Timeline', icon: Calendar },
-  { id: 'tasks' as const, label: 'Tasks', icon: CheckSquare },
-  { id: 'all' as const, label: 'All', icon: LayoutGrid },
+  { id: 'today' as const, label: 'Today', icon: CalendarDays },
+  { id: 'backlog' as const, label: 'Backlog', icon: Inbox },
 ];
 
 export function TabBar({ 
