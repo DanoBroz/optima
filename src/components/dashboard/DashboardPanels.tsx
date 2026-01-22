@@ -1,11 +1,18 @@
-import type { CalendarEvent, DayCapacity, DailyEnergy, Task } from '@/types/task';
+import type { CalendarEvent, DayCapacity, DailyEnergy, DayIntention, Task } from '@/types/task';
+import type { TaskChange } from '@/hooks/useDraft';
 import { DailyEnergySelector } from '@/components/dashboard/DailyEnergySelector';
 import { TaskList } from '@/components/dashboard/TaskList';
 import { StatsBar } from '@/components/dashboard/StatsBar';
 import { TimelineView } from '@/components/dashboard/TimelineView';
+import type { ChangesSummary } from '@/hooks/useDraft';
 import { CalendarPlus, RefreshCw } from 'lucide-react';
 
 type TabType = 'timeline' | 'tasks' | 'all';
+
+interface GhostTask {
+  task: Task;
+  originalTime: string;
+}
 
 type TaskActions = {
   toggle: (id: string) => void;
@@ -23,6 +30,28 @@ type EnergyActions = {
   setLevel: (level: DailyEnergy['energy_level'], notes?: string) => void;
 };
 
+type IntentionActions = {
+  set: (intention: DayIntention) => void;
+};
+
+interface DraftModeProps {
+  isActive: boolean;
+  changes?: Map<string, TaskChange>;
+  ghostTasks?: GhostTask[];
+  unscheduledTasks?: Task[];
+  todayTasks?: Task[];
+  tomorrowTasks?: Task[];
+  tomorrowDate?: string;
+  currentDate?: string;
+  changesSummary: ChangesSummary;
+  isProcessing?: boolean;
+  onCancel: () => void;
+  onReOptimize: () => void;
+  onApply: () => void;
+  onScheduleUnscheduled?: (taskId: string, time: string) => void;
+  onScheduleTomorrow?: (taskId: string) => void;
+}
+
 interface DashboardPanelsProps {
   activeTab: TabType;
   scheduledTasks: Task[];
@@ -30,13 +59,18 @@ interface DashboardPanelsProps {
   tasks: Task[];
   events: CalendarEvent[];
   dailyEnergy: DailyEnergy | null;
+  dayIntention: DayIntention;
   capacity: DayCapacity;
   isScheduling: boolean;
   onEventClick: (event: CalendarEvent) => void;
+  onRestoreEvent: (id: string) => void;
   onOpenEventModal: () => void;
   onOpenSyncModal: () => void;
   taskActions: TaskActions;
   energyActions: EnergyActions;
+  intentionActions: IntentionActions;
+  /** Draft mode props */
+  draftMode?: DraftModeProps;
 }
 
 function CalendarActions({ 
@@ -74,14 +108,23 @@ export function DashboardPanels({
   tasks,
   events,
   dailyEnergy,
+  dayIntention,
   capacity,
   isScheduling,
   onEventClick,
+  onRestoreEvent,
   onOpenEventModal,
   onOpenSyncModal,
   taskActions,
   energyActions,
+  intentionActions,
+  draftMode,
 }: DashboardPanelsProps) {
+  // In draft mode, use the proposed tasks from draft instead of actual scheduled tasks
+  const displayTasks = draftMode?.isActive && draftMode.unscheduledTasks 
+    ? scheduledTasks // In draft mode, scheduledTasks will be the proposed tasks passed from Index
+    : scheduledTasks;
+
   return (
     <main className="flex-1 flex flex-col md:flex-row gap-5 md:gap-8 container py-2 md:py-6 pb-28 md:pb-6 md:overflow-hidden">
       {/* Desktop sidebar - sticky */}
@@ -94,7 +137,13 @@ export function DashboardPanels({
             />
           </div>
           <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <StatsBar tasks={tasks} capacity={capacity} energyLevel={dailyEnergy?.energy_level} />
+            <StatsBar 
+              tasks={tasks} 
+              capacity={capacity} 
+              energyLevel={dailyEnergy?.energy_level}
+              dayIntention={dayIntention}
+              onIntentionChange={intentionActions.set}
+            />
           </div>
           <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
             <TaskList
@@ -105,6 +154,9 @@ export function DashboardPanels({
               onOptimizeSelected={taskActions.autoScheduleSelected}
               onOptimizeAll={taskActions.autoScheduleBacklog}
               isScheduling={isScheduling}
+              draftUnscheduledTasks={draftMode?.isActive ? draftMode.unscheduledTasks : undefined}
+              onScheduleUnscheduled={draftMode?.onScheduleUnscheduled}
+              onScheduleTomorrow={draftMode?.onScheduleTomorrow}
             />
           </div>
           {/* Calendar actions - under backlog */}
@@ -124,7 +176,7 @@ export function DashboardPanels({
           {activeTab === 'timeline' && (
             <div className="flex-1 bg-card rounded-3xl shadow-card border border-border/30 overflow-hidden animate-fade-in">
               <TimelineView
-                tasks={scheduledTasks}
+                tasks={draftMode?.isActive ? (draftMode.todayTasks ?? displayTasks) : displayTasks}
                 events={events}
                 onToggleTask={taskActions.toggle}
                 onDeleteTask={taskActions.remove}
@@ -133,6 +185,20 @@ export function DashboardPanels({
                 onLockToggle={taskActions.toggleLock}
                 onMoveToBacklog={taskActions.moveToBacklog}
                 onEventClick={onEventClick}
+                onRestoreEvent={onRestoreEvent}
+                draftMode={draftMode?.isActive}
+                draftChanges={draftMode?.changes}
+                ghostTasks={draftMode?.ghostTasks}
+                tomorrowTasks={draftMode?.tomorrowTasks}
+                tomorrowDate={draftMode?.tomorrowDate}
+                currentDate={draftMode?.currentDate}
+                draftBarProps={draftMode?.isActive ? {
+                  changesSummary: draftMode.changesSummary,
+                  onCancel: draftMode.onCancel,
+                  onReOptimize: draftMode.onReOptimize,
+                  onApply: draftMode.onApply,
+                  isProcessing: draftMode.isProcessing,
+                } : undefined}
               />
             </div>
           )}
@@ -142,7 +208,13 @@ export function DashboardPanels({
                 currentLevel={dailyEnergy?.energy_level || null}
                 onSelect={energyActions.setLevel}
               />
-              <StatsBar tasks={tasks} capacity={capacity} energyLevel={dailyEnergy?.energy_level} />
+              <StatsBar 
+                tasks={tasks} 
+                capacity={capacity} 
+                energyLevel={dailyEnergy?.energy_level}
+                dayIntention={dayIntention}
+                onIntentionChange={intentionActions.set}
+              />
               <TaskList
                 tasks={unscheduledTasks}
                 onToggleTask={taskActions.toggle}
@@ -151,6 +223,9 @@ export function DashboardPanels({
                 onOptimizeSelected={taskActions.autoScheduleSelected}
                 onOptimizeAll={taskActions.autoScheduleBacklog}
                 isScheduling={isScheduling}
+                draftUnscheduledTasks={draftMode?.isActive ? draftMode.unscheduledTasks : undefined}
+                onScheduleUnscheduled={draftMode?.onScheduleUnscheduled}
+                onScheduleTomorrow={draftMode?.onScheduleTomorrow}
               />
               {/* Calendar actions for mobile Tasks tab */}
               <CalendarActions 
@@ -180,9 +255,9 @@ export function DashboardPanels({
         </div>
 
         {/* Desktop timeline */}
-        <div className="hidden md:flex flex-1 bg-card rounded-3xl shadow-card border border-border/30 overflow-hidden animate-slide-up">
+        <div className="hidden md:flex flex-col flex-1 bg-card rounded-3xl shadow-card border border-border/30 overflow-hidden animate-slide-up">
           <TimelineView
-            tasks={scheduledTasks}
+            tasks={draftMode?.isActive ? (draftMode.todayTasks ?? displayTasks) : displayTasks}
             events={events}
             onToggleTask={taskActions.toggle}
             onDeleteTask={taskActions.remove}
@@ -191,6 +266,20 @@ export function DashboardPanels({
             onLockToggle={taskActions.toggleLock}
             onMoveToBacklog={taskActions.moveToBacklog}
             onEventClick={onEventClick}
+            onRestoreEvent={onRestoreEvent}
+            draftMode={draftMode?.isActive}
+            draftChanges={draftMode?.changes}
+            ghostTasks={draftMode?.ghostTasks}
+            tomorrowTasks={draftMode?.tomorrowTasks}
+            tomorrowDate={draftMode?.tomorrowDate}
+            currentDate={draftMode?.currentDate}
+            draftBarProps={draftMode?.isActive ? {
+              changesSummary: draftMode.changesSummary,
+              onCancel: draftMode.onCancel,
+              onReOptimize: draftMode.onReOptimize,
+              onApply: draftMode.onApply,
+              isProcessing: draftMode.isProcessing,
+            } : undefined}
           />
         </div>
       </div>

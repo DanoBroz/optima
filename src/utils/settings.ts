@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     afternoon: { start: '12:00', end: '16:00' },
     evening: { start: '16:00', end: '19:00' },
   },
+  day_intention: 'balance',
 };
 
 export const getSettings = (): UserSettings => {

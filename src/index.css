@@ -37,6 +37,10 @@
     --success: 145 55% 42%;
     --success-foreground: 0 0% 100%;
 
+    /* Tomorrow/next day - dusty rose/mauve */
+    --tomorrow: 350 30% 94%;
+    --tomorrow-foreground: 350 40% 35%;
+
     /* Softer energy colors for zen feel */
     --energy-exhausted: 0 50% 60%;
     --energy-low: 30 60% 55%;
@@ -99,6 +103,10 @@
 
     --success: 145 45% 38%;
     --success-foreground: 0 0% 100%;
+
+    /* Tomorrow/next day - dusty rose/mauve */
+    --tomorrow: 350 25% 18%;
+    --tomorrow-foreground: 350 35% 75%;
 
     --energy-exhausted: 0 40% 45%;
     --energy-low: 25 45% 45%;

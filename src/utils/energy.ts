@@ -1,4 +1,4 @@
-import type { CalendarEvent, DailyEnergyLevel, Task } from '@/types/task';
+import type { CalendarEvent, DailyEnergyLevel, DayIntention, Task } from '@/types/task';
 import { getDurationMinutes } from './time';
 
 
@@ -16,10 +16,20 @@ const DAILY_ENERGY_MULTIPLIERS: Record<DailyEnergyLevel, number> = {
   energized: 1.0,
 };
 
+const INTENTION_MULTIPLIERS: Record<DayIntention, number> = {
+  push: 1.2,
+  balance: 1.0,
+  recovery: 0.6,
+};
+
 export type EventEnergyLevel = 'low' | 'medium' | 'high';
 
 export const getDailyEnergyMultiplier = (energy: DailyEnergyLevel): number => {
   return DAILY_ENERGY_MULTIPLIERS[energy];
+};
+
+export const getIntentionMultiplier = (intention: DayIntention): number => {
+  return INTENTION_MULTIPLIERS[intention];
 };
 
 export const getEventEnergyLevel = (event: CalendarEvent): EventEnergyLevel => {

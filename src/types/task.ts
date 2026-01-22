@@ -1,6 +1,7 @@
 export type MotivationLevel = 'hate' | 'dislike' | 'neutral' | 'like' | 'love';
 export type DailyEnergyLevel = 'exhausted' | 'low' | 'medium' | 'high' | 'energized';
 export type AvailabilityPreset = 'any' | 'morning' | 'afternoon' | 'evening';
+export type DayIntention = 'push' | 'balance' | 'recovery';
 
 export interface Task {
   id: string;
@@ -43,6 +44,7 @@ export interface CalendarEvent {
   location?: string | null;
   energy_level?: 'low' | 'medium' | 'high';
   energy_drain?: number | null; // Override drain in minutes (null = use duration)
+  is_dismissed?: boolean; // Synced events can be dismissed (ghosted) without deleting
   created_at?: string;
   updated_at?: string;
 }
@@ -57,6 +59,7 @@ export interface UserSettings {
     afternoon: { start: string; end: string };
     evening: { start: string; end: string };
   };
+  day_intention: DayIntention;
 }
 
 export interface TimeBlock {

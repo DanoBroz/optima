@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useRef } from 'react';
-import { X, Zap, Trash2 } from 'lucide-react';
+import { X, Zap, Trash2, EyeOff } from 'lucide-react';
 import type { CalendarEvent } from '@/types/task';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ interface AddEventModalProps {
   onAdd: (event: Omit<CalendarEvent, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
   onUpdate?: (id: string, updates: Partial<CalendarEvent>) => void;
   onDelete?: (id: string) => void;
+  onDismiss?: (id: string) => void;
   selectedDate: Date;
   editEvent?: CalendarEvent | null;
 }
@@ -29,7 +30,7 @@ const drainMultipliers: Record<'low' | 'medium' | 'high', number> = {
 
 const DRAG_THRESHOLD = 120;
 
-export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, selectedDate, editEvent }: AddEventModalProps) {
+export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, onDismiss, selectedDate, editEvent }: AddEventModalProps) {
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
@@ -43,6 +44,13 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
   const handleRef = useRef<HTMLDivElement>(null);
 
   const isEditMode = !!editEvent;
+  const isExternalEvent = editEvent?.is_external ?? false;
+  const isDismissedEvent = editEvent?.is_dismissed ?? false;
+  
+  // External events: only energy settings are editable
+  // Dismissed events: everything is read-only
+  const isFieldDisabled = isExternalEvent || isDismissedEvent;
+  const isEnergyDisabled = isDismissedEvent;
 
   // Pre-populate form when editing
   useEffect(() => {
@@ -111,18 +119,30 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    
+    // Dismissed events can't be saved (read-only mode)
+    if (isDismissedEvent) return;
 
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
     if (isEditMode && editEvent && onUpdate) {
-      onUpdate(editEvent.id, {
-        title: title.trim(),
-        start_time: `${dateStr}T${startTime}:00Z`,
-        end_time: `${dateStr}T${endTime}:00Z`,
-        location: location || undefined,
-        energy_level: energyLevel,
-        energy_drain: useCustomDrain ? customDrain : undefined
-      });
+      if (isExternalEvent) {
+        // External events: only update energy settings
+        onUpdate(editEvent.id, {
+          energy_level: energyLevel,
+          energy_drain: useCustomDrain ? customDrain : undefined
+        });
+      } else {
+        // Manual events: update all fields
+        onUpdate(editEvent.id, {
+          title: title.trim(),
+          start_time: `${dateStr}T${startTime}:00Z`,
+          end_time: `${dateStr}T${endTime}:00Z`,
+          location: location || undefined,
+          energy_level: energyLevel,
+          energy_drain: useCustomDrain ? customDrain : undefined
+        });
+      }
     } else {
       onAdd({
         title: title.trim(),
@@ -145,6 +165,13 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
     }
   };
 
+  const handleDismiss = () => {
+    if (editEvent && onDismiss) {
+      onDismiss(editEvent.id);
+      onClose();
+    }
+  };
+
   const formatDrain = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -157,6 +184,14 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
     e.preventDefault();
     dragStartY.current = e.clientY;
     setIsDragging(true);
+  };
+
+  // Determine modal title
+  const getModalTitle = () => {
+    if (isDismissedEvent) return 'Skipped Event';
+    if (isExternalEvent) return 'Edit Synced Event';
+    if (isEditMode) return 'Edit Event';
+    return 'Add Event';
   };
 
   return (
@@ -188,7 +223,19 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-            <h2 className="text-lg font-semibold">{isEditMode ? 'Edit Event' : 'Add Event'}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">{getModalTitle()}</h2>
+              {isExternalEvent && !isDismissedEvent && (
+                <span className="px-2 py-0.5 text-[10px] bg-secondary rounded-full text-muted-foreground font-semibold">
+                  Synced
+                </span>
+              )}
+              {isDismissedEvent && (
+                <span className="px-2 py-0.5 text-[10px] bg-secondary/50 rounded-full text-muted-foreground font-semibold">
+                  Skipped
+                </span>
+              )}
+            </div>
             <button
               onClick={onClose}
               className="p-2 hover:bg-secondary rounded-xl transition-colors"
@@ -210,8 +257,12 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Meeting, appointment..."
-                className="w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                autoFocus
+                disabled={isFieldDisabled}
+                className={cn(
+                  "w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all",
+                  isFieldDisabled && "opacity-60 cursor-not-allowed"
+                )}
+                autoFocus={!isFieldDisabled}
               />
             </div>
 
@@ -224,7 +275,11 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  disabled={isFieldDisabled}
+                  className={cn(
+                    "w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all",
+                    isFieldDisabled && "opacity-60 cursor-not-allowed"
+                  )}
                 />
               </div>
               <div>
@@ -235,7 +290,11 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  disabled={isFieldDisabled}
+                  className={cn(
+                    "w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all",
+                    isFieldDisabled && "opacity-60 cursor-not-allowed"
+                  )}
                 />
               </div>
             </div>
@@ -249,12 +308,16 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Room, address, or link"
-                className="w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                disabled={isFieldDisabled}
+                className={cn(
+                  "w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all",
+                  isFieldDisabled && "opacity-60 cursor-not-allowed"
+                )}
               />
             </div>
 
             {/* Energy Level */}
-            <div>
+            <div className={cn(isEnergyDisabled && "opacity-60")}>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
                 How draining is this event?
               </label>
@@ -263,12 +326,14 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
                   <button
                     key={level}
                     type="button"
-                    onClick={() => setEnergyLevel(level)}
+                    onClick={() => !isEnergyDisabled && setEnergyLevel(level)}
+                    disabled={isEnergyDisabled}
                     className={cn(
                       "flex flex-col items-center p-3 rounded-xl transition-all",
                       energyLevel === level
                         ? "bg-primary/10 ring-2 ring-primary/50"
-                        : "bg-secondary/50 hover:bg-secondary"
+                        : "bg-secondary/50 hover:bg-secondary",
+                      isEnergyDisabled && "cursor-not-allowed"
                     )}
                   >
                     <span className="text-xl mb-1">{emoji}</span>
@@ -280,48 +345,54 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
             </div>
 
             {/* Energy Drain Preview */}
-            <div className="bg-secondary/50 rounded-xl p-3">
+            <div className={cn("bg-secondary/50 rounded-xl p-3", isEnergyDisabled && "opacity-60")}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Capacity drain</span>
                 </div>
                 <span className="text-sm font-bold text-primary">
-                  {formatDrain(calculatedDrain)}
+                  {isDismissedEvent ? '0m' : formatDrain(calculatedDrain)}
                 </span>
               </div>
               
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={useCustomDrain}
-                  onChange={(e) => setUseCustomDrain(e.target.checked)}
-                  className="rounded border-border"
-                />
-                Override with custom drain
-              </label>
-              
-              {useCustomDrain && (
-                <div className="mt-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="240"
-                    step="15"
-                    value={customDrain}
-                    onChange={(e) => setCustomDrain(Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>0m</span>
-                    <span>4h</span>
-                  </div>
-                </div>
+              {!isEnergyDisabled && (
+                <>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={useCustomDrain}
+                      onChange={(e) => setUseCustomDrain(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    Override with custom drain
+                  </label>
+                  
+                  {useCustomDrain && (
+                    <div className="mt-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="240"
+                        step="15"
+                        value={customDrain}
+                        onChange={(e) => setCustomDrain(Number(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>0m</span>
+                        <span>4h</span>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
+            {/* Action buttons */}
             <div className="flex gap-3">
-              {isEditMode && onDelete && (
+              {/* Delete button for manual events only */}
+              {isEditMode && !isExternalEvent && onDelete && (
                 <button
                   type="button"
                   onClick={handleDelete}
@@ -331,13 +402,40 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, sele
                   Delete
                 </button>
               )}
-              <button
-                type="submit"
-                disabled={!title.trim()}
-                className="flex-1 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-card active:scale-[0.98]"
-              >
-                {isEditMode ? 'Save Changes' : 'Add Event'}
-              </button>
+              
+              {/* Dismiss button for external (synced) events that are not already dismissed */}
+              {isEditMode && isExternalEvent && !isDismissedEvent && onDismiss && (
+                <button
+                  type="button"
+                  onClick={handleDismiss}
+                  className="py-3.5 px-5 bg-secondary text-muted-foreground rounded-xl font-semibold transition-all hover:bg-secondary/80 active:scale-[0.98] flex items-center gap-2"
+                >
+                  <EyeOff className="w-4 h-4" />
+                  Skip
+                </button>
+              )}
+              
+              {/* Save/Add button - hidden for dismissed events (they are read-only) */}
+              {!isDismissedEvent && (
+                <button
+                  type="submit"
+                  disabled={!title.trim()}
+                  className="flex-1 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-card active:scale-[0.98]"
+                >
+                  {isEditMode ? 'Save Changes' : 'Add Event'}
+                </button>
+              )}
+              
+              {/* Close button for dismissed events (read-only mode) */}
+              {isDismissedEvent && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-3.5 bg-secondary text-foreground rounded-xl font-semibold transition-all hover:bg-secondary/80 active:scale-[0.98]"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </form>
         </div>

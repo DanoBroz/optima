@@ -1,5 +1,6 @@
-import { Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical, Inbox } from 'lucide-react';
+import { Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical, Inbox, ArrowUp, Sparkles } from 'lucide-react';
 import type { Task } from '@/types/task';
+import type { TaskChangeType } from '@/hooks/useDraft';
 import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
@@ -12,6 +13,10 @@ interface TaskCardProps {
   compact?: boolean;
   draggable?: boolean;
   showCompletionToggle?: boolean;
+  /** Draft mode change indicator */
+  changeType?: TaskChangeType;
+  /** Original time for moved tasks (shown as "from HH:MM") */
+  originalTime?: string | null;
 }
 
 const priorityColors = {
@@ -36,7 +41,16 @@ export function TaskCard({
   compact = false, 
   draggable = false,
   showCompletionToggle = true,
+  changeType,
+  originalTime,
 }: TaskCardProps) {
+  // Determine border styling based on change type
+  const borderStyle = changeType === 'moved' 
+    ? 'ring-2 ring-amber-400/50 border-amber-400/30'
+    : changeType === 'new'
+    ? 'ring-2 ring-emerald-400/50 border-emerald-400/30'
+    : '';
+
   return (
     <div
       className={cn(
@@ -44,7 +58,8 @@ export function TaskCard({
         "hover:shadow-card hover:border-border/50",
         task.completed && "opacity-50",
         compact ? "p-3" : "p-3.5",
-        draggable && "cursor-grab active:cursor-grabbing"
+        draggable && "cursor-grab active:cursor-grabbing",
+        borderStyle
       )}
     >
       {/* Priority indicator - dot style */}
@@ -117,8 +132,22 @@ export function TaskCard({
             </span>
             
             {/* Lock indicator */}
-            {task.is_locked && (
+            {task.is_locked && !changeType && (
               <Lock className="w-3 h-3 text-muted-foreground" />
+            )}
+
+            {/* Draft change badges */}
+            {changeType === 'moved' && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                <ArrowUp className="w-3 h-3" />
+                {originalTime ? `from ${originalTime}` : 'MOVED'}
+              </span>
+            )}
+            {changeType === 'new' && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                <Sparkles className="w-3 h-3" />
+                NEW
+              </span>
             )}
           </div>
         </div>

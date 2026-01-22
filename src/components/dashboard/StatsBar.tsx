@@ -1,11 +1,14 @@
-import type { Task, DayCapacity, DailyEnergyLevel } from '@/types/task';
+import type { Task, DayCapacity, DailyEnergyLevel, DayIntention } from '@/types/task';
 import { CheckCircle2, Circle, Clock } from 'lucide-react';
 import { formatDuration } from '@/utils/time';
+import { cn } from '@/lib/utils';
 
 interface StatsBarProps {
   tasks: Task[];
   capacity: DayCapacity;
   energyLevel?: DailyEnergyLevel | null;
+  dayIntention: DayIntention;
+  onIntentionChange: (intention: DayIntention) => void;
 }
 
 const energyInfo: Record<DailyEnergyLevel, { label: string; emoji: string }> = {
@@ -16,7 +19,13 @@ const energyInfo: Record<DailyEnergyLevel, { label: string; emoji: string }> = {
   energized: { label: 'Peak flow', emoji: '🔥' },
 };
 
-export function StatsBar({ tasks, capacity, energyLevel }: StatsBarProps) {
+const intentionConfig: { intention: DayIntention; emoji: string; label: string }[] = [
+  { intention: 'push', emoji: '🚀', label: 'Push' },
+  { intention: 'balance', emoji: '⚖️', label: 'Balance' },
+  { intention: 'recovery', emoji: '🧘', label: 'Recover' },
+];
+
+export function StatsBar({ tasks, capacity, energyLevel, dayIntention, onIntentionChange }: StatsBarProps) {
   const total = tasks.length;
   const completed = tasks.filter((t) => t.completed).length;
   const pending = total - completed;
@@ -81,7 +90,7 @@ export function StatsBar({ tasks, capacity, energyLevel }: StatsBarProps) {
       </div>
 
       {/* Capacity bar */}
-      <div className="mb-5">
+      <div className="mb-4">
         <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-500 ease-out ${getCapacityColor()}`}
@@ -99,6 +108,38 @@ export function StatsBar({ tasks, capacity, energyLevel }: StatsBarProps) {
             {capacity.percentage}% used
           </span>
         </div>
+      </div>
+
+      {/* Day intention selector */}
+      <div className="flex gap-2 mb-5">
+        {intentionConfig.map(({ intention, emoji, label }) => {
+          const isSelected = dayIntention === intention;
+          return (
+            <button
+              key={intention}
+              onClick={() => onIntentionChange(intention)}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl transition-all duration-200 text-sm",
+                isSelected
+                  ? "bg-primary/15 ring-2 ring-primary/40 font-semibold"
+                  : "bg-secondary/50 hover:bg-secondary active:scale-95"
+              )}
+            >
+              <span className={cn(
+                "transition-all",
+                isSelected ? "" : "grayscale opacity-60"
+              )}>
+                {emoji}
+              </span>
+              <span className={cn(
+                "font-medium",
+                isSelected ? "text-primary" : "text-muted-foreground"
+              )}>
+                {label}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Stats grid */}

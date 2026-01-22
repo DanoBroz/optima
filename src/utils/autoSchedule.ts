@@ -121,12 +121,17 @@ export const buildTimeSlots = (
   events.forEach(event => {
     const eventStart = new Date(event.start_time);
     const eventEnd = new Date(event.end_time);
+    
+    // Use LOCAL time from event dates to match how slots are defined and displayed
+    // This ensures consistency regardless of how the event was stored (UTC vs local)
+    const eventStartMinutes = eventStart.getHours() * 60 + eventStart.getMinutes();
+    const eventEndMinutes = eventEnd.getHours() * 60 + eventEnd.getMinutes();
+    
     slots.forEach(slot => {
       const [h, m] = slot.time.split(':').map(Number);
-      const slotDate = new Date(targetDate);
-      slotDate.setHours(h, m, 0);
+      const slotMinutes = h * 60 + m;
 
-      if (slotDate >= eventStart && slotDate < eventEnd) {
+      if (slotMinutes >= eventStartMinutes && slotMinutes < eventEndMinutes) {
         slot.available = false;
       }
     });

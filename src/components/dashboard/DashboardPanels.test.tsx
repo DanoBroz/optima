@@ -57,6 +57,7 @@ describe('DashboardPanels', () => {
         capacity={baseCapacity}
         isScheduling={false}
         onEventClick={vi.fn()}
+        onRestoreEvent={vi.fn()}
         onOpenEventModal={vi.fn()}
         onOpenSyncModal={vi.fn()}
         taskActions={{
@@ -72,6 +73,10 @@ describe('DashboardPanels', () => {
         }}
         energyActions={{
           setLevel: vi.fn(),
+        }}
+        dayIntention="balance"
+        intentionActions={{
+          set: vi.fn(),
         }}
       />
     );

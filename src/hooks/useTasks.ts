@@ -47,7 +47,22 @@ export function useTasks(selectedDate: Date = new Date()) {
       const { startOfDay, endOfDay } = getDayTimeRange(dateStr);
       // Use server-side filtering to avoid Supabase row limits
       const events = await eventRepository.getByDateRange(startOfDay, endOfDay);
-      setEvents(events);
+
+      // Additional client-side filtering to ensure only events for this day
+      // (handles timezone edge cases and format mismatches)
+      const startMs = new Date(startOfDay).getTime();
+      const endMs = new Date(endOfDay).getTime();
+      const filteredEvents = events.filter(event => {
+        const eventMs = new Date(event.start_time).getTime();
+        return eventMs >= startMs && eventMs <= endMs;
+      });
+
+      console.log('[fetchEvents]', dateStr, '- server:', events.length, 'client filtered:', filteredEvents.length);
+      if (events.length > 0) {
+        console.log('[fetchEvents] Sample event:', events[0].title, events[0].start_time);
+      }
+
+      setEvents(filteredEvents);
     } catch (error) {
       console.error('Error fetching events:', error);
     }

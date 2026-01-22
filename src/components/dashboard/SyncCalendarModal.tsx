@@ -545,39 +545,27 @@ function parseICSDateTime(line: string): string | null {
   // If timezone specified, convert from that timezone to UTC
   if (timezone) {
     try {
-      // Create a date string and use Intl to determine the UTC offset
-      const localDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+      // Create a UTC reference point with our local time values
+      const referenceUtc = new Date(Date.UTC(year, month, day, hour, minute, second));
 
-      // Get the UTC time by calculating the timezone offset
-      const tempDate = new Date(localDateStr + 'Z'); // Treat as UTC temporarily
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      });
+      // Get what this UTC time looks like in the target timezone
+      // Using 'sv-SE' locale gives consistent ISO-like format: "2026-01-22 12:00:00"
+      const tzString = referenceUtc.toLocaleString('sv-SE', { timeZone: timezone });
 
-      // Format the UTC time in the target timezone to find the offset
-      const parts = formatter.formatToParts(tempDate);
-      const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+      // Parse the timezone representation
+      const [datePart, timePart] = tzString.split(' ');
+      const [tzYear, tzMonth, tzDay] = datePart.split('-').map(Number);
+      const [tzHour, tzMinute, tzSecond] = timePart.split(':').map(Number);
 
-      const tzYear = parseInt(getPart('year'));
-      const tzMonth = parseInt(getPart('month')) - 1;
-      const tzDay = parseInt(getPart('day'));
-      const tzHour = parseInt(getPart('hour'));
-      const tzMinute = parseInt(getPart('minute'));
-      const tzSecond = parseInt(getPart('second'));
+      // Calculate offset: (timezone representation as UTC) - (actual UTC)
+      // If referenceUtc is 11:00 UTC and it shows as 12:00 in Prague, offset = +1 hour
+      const tzAsUtcMs = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute, tzSecond);
+      const offsetMs = tzAsUtcMs - referenceUtc.getTime();
 
-      // Calculate offset: how much the timezone differs from UTC
-      const utcMs = Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond);
-      const offsetMs = utcMs - tempDate.getTime();
-
-      // Apply the inverse offset to get the correct UTC time
-      const correctUtcMs = Date.UTC(year, month, day, hour, minute, second) - offsetMs;
+      // Our input (hour, minute, second) is local time in the specified timezone
+      // To get UTC: subtract the offset
+      // Example: 11:00 Prague with offset +1hr → 11:00 - 1hr = 10:00 UTC
+      const correctUtcMs = referenceUtc.getTime() - offsetMs;
       return new Date(correctUtcMs).toISOString();
     } catch {
       // Fallback: treat as local timezone if timezone is invalid

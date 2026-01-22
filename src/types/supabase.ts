@@ -79,6 +79,7 @@ export interface Database {
           location: string | null;
           energy_level: 'low' | 'medium' | 'high' | null;
           energy_drain: number | null;
+          is_dismissed: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -94,6 +95,7 @@ export interface Database {
           location?: string | null;
           energy_level?: 'low' | 'medium' | 'high' | null;
           energy_drain?: number | null;
+          is_dismissed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -109,6 +111,7 @@ export interface Database {
           location?: string | null;
           energy_level?: 'low' | 'medium' | 'high' | null;
           energy_drain?: number | null;
+          is_dismissed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
