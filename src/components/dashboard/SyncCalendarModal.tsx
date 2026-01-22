@@ -7,13 +7,14 @@ interface SyncCalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[]) => Promise<void>;
+  selectedDate: Date;
 }
 
 type SyncStep = 'instructions' | 'importing' | 'success' | 'error';
 
 const DRAG_THRESHOLD = 120;
 
-export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarModalProps) {
+export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: SyncCalendarModalProps) {
   const [step, setStep] = useState<SyncStep>('instructions');
   const [importedCount, setImportedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
@@ -65,10 +66,26 @@ export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarMod
     setStep('importing');
     try {
       const text = await file.text();
-      const events = parseICSFile(text);
+      const allEvents = parseICSFile(text);
 
-      await onImport(events);
-      setImportedCount(events.length);
+      // Apply +1 hour correction for macOS Calendar export bug
+      // macOS exports times 1 hour earlier than displayed
+      const MACOS_OFFSET_CORRECTION_MS = 60 * 60 * 1000; // +1 hour
+      const correctedEvents = allEvents.map(event => ({
+        ...event,
+        start_time: new Date(new Date(event.start_time).getTime() + MACOS_OFFSET_CORRECTION_MS).toISOString(),
+        end_time: new Date(new Date(event.end_time).getTime() + MACOS_OFFSET_CORRECTION_MS).toISOString(),
+      }));
+
+      // Filter events to only include those on the selected date
+      const selectedDateStr = selectedDate.toISOString().split('T')[0]; // "2026-01-22"
+      const filteredEvents = correctedEvents.filter(event => {
+        const eventDateStr = event.start_time.split('T')[0];
+        return eventDateStr === selectedDateStr;
+      });
+
+      await onImport(filteredEvents);
+      setImportedCount(filteredEvents.length);
       setStep('success');
 
       setTimeout(() => {
@@ -282,6 +299,115 @@ interface RRule {
   bymonthday?: number[];
 }
 
+// VTIMEZONE parsing types - for custom timezone offset definitions in ICS files
+interface VTimezoneOffset {
+  tzid: string;
+  standardOffset: number; // minutes from UTC (positive = east of UTC)
+  daylightOffset: number; // minutes from UTC
+  // Approximate DST transition months (for simple DST detection)
+  standardMonth: number; // Month when standard time starts (1-12)
+  daylightMonth: number; // Month when daylight time starts (1-12)
+}
+
+// Parse offset string like "+0100" or "-0500" to minutes from UTC
+function parseTimezoneOffset(offsetStr: string): number {
+  const sign = offsetStr.startsWith('-') ? -1 : 1;
+  const cleaned = offsetStr.replace(/[+-]/, '');
+  const hours = parseInt(cleaned.substring(0, 2)) || 0;
+  const minutes = parseInt(cleaned.substring(2, 4)) || 0;
+  return sign * (hours * 60 + minutes);
+}
+
+// Parse all VTIMEZONE blocks from ICS content
+function parseVTimezones(icsContent: string): Map<string, VTimezoneOffset> {
+  const timezones = new Map<string, VTimezoneOffset>();
+  const lines = icsContent.split(/\r?\n/);
+
+  let inVTimezone = false;
+  let inStandard = false;
+  let inDaylight = false;
+  let currentTzid = '';
+  let standardOffset = 0;
+  let daylightOffset = 0;
+  let standardMonth = 10; // Default October
+  let daylightMonth = 3;  // Default March
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed === 'BEGIN:VTIMEZONE') {
+      inVTimezone = true;
+      currentTzid = '';
+      standardOffset = 0;
+      daylightOffset = 0;
+      standardMonth = 10;
+      daylightMonth = 3;
+    } else if (trimmed === 'END:VTIMEZONE') {
+      if (currentTzid) {
+        timezones.set(currentTzid, {
+          tzid: currentTzid,
+          standardOffset,
+          daylightOffset: daylightOffset || standardOffset,
+          standardMonth,
+          daylightMonth,
+        });
+      }
+      inVTimezone = false;
+      inStandard = false;
+      inDaylight = false;
+    } else if (inVTimezone) {
+      if (trimmed.startsWith('TZID:')) {
+        currentTzid = trimmed.substring(5);
+      } else if (trimmed === 'BEGIN:STANDARD') {
+        inStandard = true;
+        inDaylight = false;
+      } else if (trimmed === 'END:STANDARD') {
+        inStandard = false;
+      } else if (trimmed === 'BEGIN:DAYLIGHT') {
+        inDaylight = true;
+        inStandard = false;
+      } else if (trimmed === 'END:DAYLIGHT') {
+        inDaylight = false;
+      } else if (trimmed.startsWith('TZOFFSETTO:')) {
+        const offset = parseTimezoneOffset(trimmed.substring(11));
+        if (inStandard) standardOffset = offset;
+        if (inDaylight) daylightOffset = offset;
+      } else if (trimmed.startsWith('DTSTART:') && (inStandard || inDaylight)) {
+        // Extract month from DTSTART to determine DST transition
+        const dtMatch = trimmed.match(/DTSTART:\d{4}(\d{2})/);
+        if (dtMatch) {
+          const month = parseInt(dtMatch[1]);
+          if (inStandard) standardMonth = month;
+          if (inDaylight) daylightMonth = month;
+        }
+      } else if (trimmed.startsWith('RRULE:') && (inStandard || inDaylight)) {
+        // Extract month from RRULE BYMONTH if present
+        const bymonthMatch = trimmed.match(/BYMONTH=(\d+)/);
+        if (bymonthMatch) {
+          const month = parseInt(bymonthMatch[1]);
+          if (inStandard) standardMonth = month;
+          if (inDaylight) daylightMonth = month;
+        }
+      }
+    }
+  }
+
+  return timezones;
+}
+
+// Determine if a date is in daylight saving time for a given timezone
+function isDaylightSavingTime(month: number, tzOffset: VTimezoneOffset): boolean {
+  // Simple heuristic: DST is between daylightMonth and standardMonth
+  // This works for Northern Hemisphere (DST in summer)
+  if (tzOffset.daylightMonth < tzOffset.standardMonth) {
+    // Northern hemisphere: DST from ~March to ~October
+    return month >= tzOffset.daylightMonth && month < tzOffset.standardMonth;
+  } else {
+    // Southern hemisphere: DST from ~October to ~March
+    return month >= tzOffset.daylightMonth || month < tzOffset.standardMonth;
+  }
+}
+
 // Parse RRULE string into structured object
 function parseRRule(rruleLine: string): RRule | null {
   const rule: RRule = { freq: 'DAILY', interval: 1 };
@@ -430,6 +556,10 @@ function expandRecurringEvent(
 // Simple ICS parser for calendar events with RRULE support
 function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[] {
   const events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[] = [];
+
+  // First, parse all VTIMEZONE blocks to get custom timezone definitions
+  const timezones = parseVTimezones(icsContent);
+
   const lines = icsContent.split(/\r?\n/);
 
   let currentEvent: any = null;
@@ -453,14 +583,16 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
       currentRRule = null;
       currentExdates = new Set();
     } else if (line === 'END:VEVENT' && currentEvent) {
-      // Only process events that have required fields
-      if (currentEvent.title && currentEvent.start_time && currentEvent.end_time) {
+      // Only process events that have required fields and aren't cancelled
+      const isCancelled = currentEvent.status === 'CANCELLED';
+      if (currentEvent.title && currentEvent.start_time && currentEvent.end_time && !isCancelled) {
         if (currentRRule) {
           // Expand recurring event into instances
           const instances = expandRecurringEvent(currentEvent, currentRRule, currentExdates);
           events.push(...instances);
         } else {
-          // Single event
+          // Single event - remove the status field before adding
+          delete currentEvent.status;
           events.push(currentEvent);
         }
       }
@@ -472,10 +604,10 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
       if (line.startsWith('SUMMARY:')) {
         currentEvent.title = line.substring(8);
       } else if (line.startsWith('DTSTART')) {
-        const dateTime = parseICSDateTime(line);
+        const dateTime = parseICSDateTime(line, timezones);
         if (dateTime) currentEvent.start_time = dateTime;
       } else if (line.startsWith('DTEND')) {
-        const dateTime = parseICSDateTime(line);
+        const dateTime = parseICSDateTime(line, timezones);
         if (dateTime) currentEvent.end_time = dateTime;
       } else if (line.startsWith('LOCATION:')) {
         currentEvent.location = line.substring(9) || undefined;
@@ -494,6 +626,9 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
             currentExdates.add(exDate.toISOString().split('T')[0]);
           }
         }
+      } else if (line.startsWith('STATUS:')) {
+        // Track event status (CONFIRMED, TENTATIVE, CANCELLED)
+        currentEvent.status = line.substring(7).trim();
       }
     }
   }
@@ -501,7 +636,10 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
   return events;
 }
 
-function parseICSDateTime(line: string): string | null {
+function parseICSDateTime(
+  line: string,
+  timezones: Map<string, VTimezoneOffset> = new Map()
+): string | null {
   // Extract date-time value from lines like:
   // DTSTART:20240115T090000Z
   // DTSTART;VALUE=DATE:20240115
@@ -523,13 +661,14 @@ function parseICSDateTime(line: string): string | null {
 
   // Parse date components
   const year = parseInt(dateStr.substring(0, 4));
-  const month = parseInt(dateStr.substring(4, 6)) - 1; // 0-indexed for Date
+  const month = parseInt(dateStr.substring(4, 6)); // 1-indexed for DST check
+  const monthIndex = month - 1; // 0-indexed for Date constructor
   const day = parseInt(dateStr.substring(6, 8));
 
   // For date-only values (all-day events), use UTC midnight
   // This ensures consistent filtering regardless of local timezone
   if (isDateOnly || !dateStr.includes('T')) {
-    return new Date(Date.UTC(year, month, day, 0, 0, 0)).toISOString();
+    return new Date(Date.UTC(year, monthIndex, day, 0, 0, 0)).toISOString();
   }
 
   let hour = 0, minute = 0, second = 0;
@@ -539,14 +678,30 @@ function parseICSDateTime(line: string): string | null {
 
   // If already UTC (ends with Z), create UTC date directly
   if (dateStr.endsWith('Z')) {
-    return new Date(Date.UTC(year, month, day, hour, minute, second)).toISOString();
+    return new Date(Date.UTC(year, monthIndex, day, hour, minute, second)).toISOString();
   }
 
   // If timezone specified, convert from that timezone to UTC
   if (timezone) {
+    // First, check if we have a VTIMEZONE definition for this timezone
+    const vtimezone = timezones.get(timezone);
+
+    if (vtimezone) {
+      // Use the VTIMEZONE offset definition from the ICS file
+      const isDST = isDaylightSavingTime(month, vtimezone);
+      const offsetMinutes = isDST ? vtimezone.daylightOffset : vtimezone.standardOffset;
+
+      // Convert local time to UTC: UTC = local - offset
+      // Example: 11:00 CET (offset +60min) → 11:00 - 60min = 10:00 UTC
+      const localMs = Date.UTC(year, monthIndex, day, hour, minute, second);
+      const utcMs = localMs - (offsetMinutes * 60 * 1000);
+      return new Date(utcMs).toISOString();
+    }
+
+    // Fallback to IANA timezone via Intl API
     try {
       // Create a UTC reference point with our local time values
-      const referenceUtc = new Date(Date.UTC(year, month, day, hour, minute, second));
+      const referenceUtc = new Date(Date.UTC(year, monthIndex, day, hour, minute, second));
 
       // Get what this UTC time looks like in the target timezone
       // Using 'sv-SE' locale gives consistent ISO-like format: "2026-01-22 12:00:00"
@@ -569,10 +724,10 @@ function parseICSDateTime(line: string): string | null {
       return new Date(correctUtcMs).toISOString();
     } catch {
       // Fallback: treat as local timezone if timezone is invalid
-      return new Date(year, month, day, hour, minute, second).toISOString();
+      return new Date(year, monthIndex, day, hour, minute, second).toISOString();
     }
   }
 
   // No timezone but has time: treat as local timezone
-  return new Date(year, month, day, hour, minute, second).toISOString();
+  return new Date(year, monthIndex, day, hour, minute, second).toISOString();
 }
