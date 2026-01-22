@@ -193,11 +193,11 @@ export function DashboardPanels({
       </aside>
 
       {/* Main content area */}
-      <div className="h-0 flex-grow flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0 md:min-h-0">
         {/* Mobile views */}
-        <div className="md:hidden flex flex-col h-0 flex-grow">
+        <div className="md:hidden flex flex-col min-h-0">
           {activeTab === 'timeline' && (
-            <div className="h-0 flex-grow bg-card rounded-3xl shadow-card border border-border/30 animate-fade-in">
+            <div className="flex-1 min-h-0 bg-card rounded-3xl shadow-card border border-border/30 overflow-hidden animate-fade-in">
               <TimelineView
                 tasks={draftMode?.isActive ? (draftMode.todayTasks ?? displayTasks) : displayTasks}
                 events={events}
