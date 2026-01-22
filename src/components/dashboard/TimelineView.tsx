@@ -530,23 +530,11 @@ export function TimelineView({
 
       {/* Mobile: Single timeline + tomorrow list below */}
       <div className="md:hidden">
-        {/* DraftBar - sticky header for mobile (inside scroll container) */}
-        {draftBarProps && (
-          <DraftBar
-            changesSummary={draftBarProps.changesSummary}
-            onCancel={draftBarProps.onCancel}
-            onReOptimize={draftBarProps.onReOptimize}
-            onApply={draftBarProps.onApply}
-            isProcessing={draftBarProps.isProcessing}
-          />
-        )}
+        {/* DraftBar is now shown in DraftActionBar at bottom on mobile */}
 
         {/* Date header (only show in draft mode with tomorrow tasks) */}
         {hasTomorrowTasks && (
-          <div className={cn(
-            "sticky z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30",
-            draftBarProps ? "top-[60px]" : "top-0"
-          )}>
+          <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30">
             <span className="text-sm font-semibold">Today · {formatDateHeader(currentDate)}</span>
           </div>
         )}

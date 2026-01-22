@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Header } from '@/components/dashboard/Header';
 import { TabBar } from '@/components/dashboard/TabBar';
+import { DraftActionBar } from '@/components/dashboard/DraftActionBar';
 import { AddTaskModal } from '@/components/dashboard/AddTaskModal';
 import { AddEventModal } from '@/components/dashboard/AddEventModal';
 import { SyncCalendarModal } from '@/components/dashboard/SyncCalendarModal';
@@ -469,14 +470,24 @@ const Index = () => {
 
 
 
-      {/* Mobile tab bar */}
-      <TabBar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
-        onAddTask={() => setIsTaskModalOpen(true)}
-        onAutoSchedule={handleHeaderOptimize}
-        isScheduling={isScheduling || draft.isProcessing}
-      />
+      {/* Mobile bottom bar - show DraftActionBar during draft mode, TabBar otherwise */}
+      {draft.isActive ? (
+        <DraftActionBar
+          onCancel={draft.cancelDraft}
+          onApply={draft.applyDraft}
+          isProcessing={draft.isProcessing}
+          hasChanges={draft.changesSummary.moved > 0 || draft.changesSummary.new > 0}
+          changesSummary={draft.changesSummary}
+        />
+      ) : (
+        <TabBar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onAddTask={() => setIsTaskModalOpen(true)}
+          onAutoSchedule={handleHeaderOptimize}
+          isScheduling={isScheduling || draft.isProcessing}
+        />
+      )}
 
       {/* Modals */}
       <AddTaskModal

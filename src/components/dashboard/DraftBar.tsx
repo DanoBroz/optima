@@ -1,6 +1,7 @@
 import { X, RefreshCw, Check, Sparkles } from 'lucide-react';
 import type { ChangesSummary } from '@/hooks/useDraft';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface DraftBarProps {
   changesSummary: ChangesSummary;
@@ -17,6 +18,7 @@ export function DraftBar({
   onApply,
   isProcessing = false,
 }: DraftBarProps) {
+  const isMobile = useIsMobile();
   const { moved, new: newCount, unscheduled, scheduledTomorrow } = changesSummary;
   const hasChanges = moved > 0 || newCount > 0;
 
@@ -46,51 +48,53 @@ export function DraftBar({
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2">
-            {/* Cancel button */}
-            <button
-              onClick={onCancel}
-              disabled={isProcessing}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                isProcessing && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <X className="w-3.5 h-3.5" />
-              Cancel
-            </button>
+          {/* Action buttons - desktop only (mobile uses DraftActionBar) */}
+          {!isMobile && (
+            <div className="flex items-center gap-2">
+              {/* Cancel button */}
+              <button
+                onClick={onCancel}
+                disabled={isProcessing}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "text-muted-foreground hover:text-foreground hover:bg-secondary",
+                  isProcessing && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <X className="w-3.5 h-3.5" />
+                Cancel
+              </button>
 
-            {/* Re-optimize button */}
-            <button
-              onClick={onReOptimize}
-              disabled={isProcessing}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                "bg-secondary text-foreground hover:bg-secondary/80",
-                isProcessing && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5", isProcessing && "animate-spin")} />
-              Re-optimize
-            </button>
+              {/* Re-optimize button */}
+              <button
+                onClick={onReOptimize}
+                disabled={isProcessing}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "bg-secondary text-foreground hover:bg-secondary/80",
+                  isProcessing && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isProcessing && "animate-spin")} />
+                Re-optimize
+              </button>
 
-            {/* Apply button */}
-            <button
-              onClick={onApply}
-              disabled={isProcessing || !hasChanges}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                hasChanges && !isProcessing
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-secondary text-muted-foreground cursor-not-allowed"
-              )}
-            >
-              <Check className="w-3.5 h-3.5" />
-              Apply
-            </button>
-          </div>
+              {/* Apply button */}
+              <button
+                onClick={onApply}
+                disabled={isProcessing || !hasChanges}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  hasChanges && !isProcessing
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-secondary text-muted-foreground cursor-not-allowed"
+                )}
+              >
+                <Check className="w-3.5 h-3.5" />
+                Apply
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
