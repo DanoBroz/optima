@@ -13,7 +13,7 @@ const buildTask = (overrides: Partial<Task> = {}): Task => ({
   priority: 'medium',
   energy_level: 'medium',
   motivation_level: 'neutral',
-  availability_preset: 'any',
+  availability_windows: [],
   is_locked: false,
   order_index: 0,
   scheduled_time: null,

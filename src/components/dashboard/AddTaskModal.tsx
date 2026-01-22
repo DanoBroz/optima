@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Task, MotivationLevel, AvailabilityPreset } from '@/types/task';
+import type { Task, MotivationLevel, AvailabilityWindows } from '@/types/task';
 import { cn } from '@/lib/utils';
 
 interface AddTaskModalProps {
@@ -26,7 +26,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [energyLevel, setEnergyLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [motivation, setMotivation] = useState<MotivationLevel>('neutral');
-  const [availabilityPreset, setAvailabilityPreset] = useState<AvailabilityPreset>('any');
+  const [availabilityWindows, setAvailabilityWindows] = useState<AvailabilityWindows>([]);
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef(0);
@@ -76,7 +76,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
       priority,
       energy_level: energyLevel,
       motivation_level: motivation,
-      availability_preset: availabilityPreset,
+      availability_windows: availabilityWindows,
       is_locked: !!time,
       order_index: 0
     });
@@ -87,7 +87,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
     setPriority('medium');
     setEnergyLevel('medium');
     setMotivation('neutral');
-    setAvailabilityPreset('any');
+    setAvailabilityWindows([]);
     onClose();
   };
 
@@ -267,25 +267,41 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
             {/* Availability Window */}
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Available time window
+                Available time windows
               </label>
               <div className="flex gap-2">
-                {(['any', 'morning', 'afternoon', 'evening'] as const).map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setAvailabilityPreset(preset)}
-                    className={cn(
-                      "flex-1 py-2.5 rounded-xl text-sm font-medium capitalize transition-all",
-                      availabilityPreset === preset
-                        ? "bg-accent text-accent-foreground ring-2 ring-primary/30"
-                        : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
-                    )}
-                  >
-                    {preset}
-                  </button>
-                ))}
+                {(['morning', 'afternoon', 'evening'] as const).map((window) => {
+                  const isSelected = availabilityWindows.includes(window);
+                  return (
+                    <button
+                      key={window}
+                      type="button"
+                      onClick={() => {
+                        const newWindows = isSelected
+                          ? availabilityWindows.filter(w => w !== window)
+                          : [...availabilityWindows, window];
+                        // If all three selected, reset to empty (any)
+                        if (newWindows.length === 3) {
+                          setAvailabilityWindows([]);
+                        } else {
+                          setAvailabilityWindows(newWindows as AvailabilityWindows);
+                        }
+                      }}
+                      className={cn(
+                        "flex-1 py-2.5 rounded-xl text-sm font-medium capitalize transition-all",
+                        isSelected
+                          ? "bg-accent text-accent-foreground ring-2 ring-primary/30"
+                          : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                      )}
+                    >
+                      {window}
+                    </button>
+                  );
+                })}
               </div>
+              {availabilityWindows.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1.5">Any time (no restriction)</p>
+              )}
             </div>
 
             {/* Submit */}

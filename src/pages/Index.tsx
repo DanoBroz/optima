@@ -21,7 +21,7 @@ import {
 import { useTasks } from '@/hooks/useTasks';
 import { useDraft } from '@/hooks/useDraft';
 import { taskRepository } from '@/data/taskRepository';
-import type { CalendarEvent, Task, AvailabilityPreset } from '@/types/task';
+import type { CalendarEvent, Task } from '@/types/task';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { scheduleService } from '@/services/scheduleService';
@@ -92,7 +92,7 @@ const Index = () => {
     const tomorrowStr = format(addDays(selectedDate, 1), 'yyyy-MM-dd');
     const tomorrowSlot = scheduling.findNextSlotTomorrow(
       task.duration,
-      task.availability_preset as AvailabilityPreset
+      task.availability_windows
     );
 
     if (tomorrowSlot) {
@@ -176,7 +176,7 @@ const Index = () => {
         // Find next available slot today
         const nextSlot = scheduling.findNextSlotToday(
           task.duration,
-          task.availability_preset as AvailabilityPreset
+          task.availability_windows
         );
         if (nextSlot) {
           taskActions.add({
@@ -189,7 +189,7 @@ const Index = () => {
           // No slot today, try tomorrow
           const tomorrowSlot = scheduling.findNextSlotTomorrow(
             task.duration,
-            task.availability_preset as AvailabilityPreset
+            task.availability_windows
           );
           if (tomorrowSlot) {
             taskActions.add({
@@ -214,7 +214,7 @@ const Index = () => {
         const tomorrowStr = format(addDays(selectedDate, 1), 'yyyy-MM-dd');
         const tomorrowSlot = scheduling.findNextSlotTomorrow(
           task.duration,
-          task.availability_preset as AvailabilityPreset
+          task.availability_windows
         );
         if (tomorrowSlot) {
           taskActions.add({

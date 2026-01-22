@@ -1,5 +1,9 @@
 export type MotivationLevel = 'hate' | 'dislike' | 'neutral' | 'like' | 'love';
 export type DailyEnergyLevel = 'exhausted' | 'low' | 'medium' | 'high' | 'energized';
+export type TimeWindow = 'morning' | 'afternoon' | 'evening';
+// Empty array or all three windows = "any" (no restriction)
+export type AvailabilityWindows = TimeWindow[];
+// Keep old type for backward compatibility during migration
 export type AvailabilityPreset = 'any' | 'morning' | 'afternoon' | 'evening';
 export type DayIntention = 'push' | 'balance' | 'recovery';
 
@@ -15,7 +19,7 @@ export interface Task {
   priority: 'low' | 'medium' | 'high';
   energy_level: 'low' | 'medium' | 'high';
   motivation_level: MotivationLevel;
-  availability_preset: AvailabilityPreset;
+  availability_windows: AvailabilityWindows;
   is_locked: boolean;
   order_index: number;
   created_at?: string;

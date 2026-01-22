@@ -17,7 +17,7 @@ const baseTask = (overrides: Partial<Task> = {}): Task => ({
   priority: 'medium',
   energy_level: 'medium',
   motivation_level: 'neutral',
-  availability_preset: 'any',
+  availability_windows: [],
   is_locked: false,
   order_index: 0,
   scheduled_time: null,
@@ -107,7 +107,7 @@ describe('findNextAvailableSlot', () => {
   });
 
   it('finds next available slot respecting current time', () => {
-    const slot = findNextAvailableSlot('2024-01-15', 30, 'any', [], []);
+    const slot = findNextAvailableSlot('2024-01-15', 30, [], [], []);
     // Slots are in 15-min increments, 10:30 is the current time slot
     expect(slot).toBe('10:30');
   });
@@ -116,7 +116,7 @@ describe('findNextAvailableSlot', () => {
     const existingTasks = [
       baseTask({ id: 'existing', scheduled_time: '10:30', scheduled_date: '2024-01-15', duration: 30 }),
     ];
-    const slot = findNextAvailableSlot('2024-01-15', 30, 'any', [], existingTasks);
+    const slot = findNextAvailableSlot('2024-01-15', 30, [], [], existingTasks);
     // 10:30-11:00 is occupied, so should find 11:00
     expect(slot).toBe('11:00');
   });
@@ -124,7 +124,7 @@ describe('findNextAvailableSlot', () => {
   it('returns null when no slots available', () => {
     // Mock time to late in the day
     vi.setSystemTime(new Date('2024-01-15T18:45:00'));
-    const slot = findNextAvailableSlot('2024-01-15', 60, 'any', [], []);
+    const slot = findNextAvailableSlot('2024-01-15', 60, [], [], []);
     // Default work hours end at 19:00, so no 60-min slot available
     expect(slot).toBe(null);
   });

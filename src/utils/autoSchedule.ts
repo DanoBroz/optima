@@ -1,4 +1,4 @@
-import type { AvailabilityPreset, CalendarEvent, DailyEnergyLevel, Task } from '@/types/task';
+import type { AvailabilityWindows, CalendarEvent, DailyEnergyLevel, Task } from '@/types/task';
 import { getTaskEnergyAlignmentBonus } from './energy';
 import { getSettings } from './settings';
 import { format, addDays } from 'date-fns';
@@ -177,27 +177,30 @@ const calculateTaskScore = (task: Task, dailyEnergy: DailyEnergyLevel): number =
 const findBestSlot = (task: Task, slots: ScheduleSlot[], targetDate: string): ScheduleSlot | null => {
   const requiredSlots = Math.ceil(task.duration / 15);
   const settings = getSettings();
-  const preset = task.availability_preset || 'any';
+  const windows = task.availability_windows || [];
 
-  // Get time window for the preset
-  let windowStart = '00:00';
-  let windowEnd = '23:59';
-  if (preset !== 'any') {
-    const presetConfig = settings.availability_presets[preset];
-    windowStart = presetConfig.start;
-    windowEnd = presetConfig.end;
+  // Build list of allowed time ranges
+  // Empty array means "any time"
+  const timeRanges: Array<{ start: string; end: string }> = [];
+  if (windows.length === 0) {
+    timeRanges.push({ start: '00:00', end: '23:59' });
+  } else {
+    for (const window of windows) {
+      const config = settings.availability_presets[window];
+      timeRanges.push({ start: config.start, end: config.end });
+    }
   }
 
   const isSlotInWindow = (slotTime: string): boolean => {
-    return slotTime >= windowStart && slotTime < windowEnd;
+    return timeRanges.some(range => slotTime >= range.start && slotTime < range.end);
   };
 
   for (let i = 0; i <= slots.length - requiredSlots; i++) {
     // Real-time check: skip if this slot is now in the past
     if (isSlotInPast(slots[i].time, targetDate)) continue;
-    
+
     const block = slots.slice(i, i + requiredSlots);
-    // Check all slots in block are available AND within the task's preset window
+    // Check all slots in block are available AND within any of the task's allowed windows
     if (block.every(slot => slot.available && isSlotInWindow(slot.time))) {
       return slots[i];
     }
@@ -237,7 +240,7 @@ export const isTimeInPast = (time: string, date: string): boolean => {
 export const findNextAvailableSlot = (
   targetDate: string,
   duration: number,
-  preset: AvailabilityPreset,
+  windows: AvailabilityWindows,
   events: CalendarEvent[],
   tasks: Task[]
 ): string | null => {
@@ -253,17 +256,19 @@ export const findNextAvailableSlot = (
 
   const requiredSlots = Math.ceil(duration / 15);
 
-  // Get time window for the preset
-  let windowStart = '00:00';
-  let windowEnd = '23:59';
-  if (preset !== 'any') {
-    const presetConfig = settings.availability_presets[preset];
-    windowStart = presetConfig.start;
-    windowEnd = presetConfig.end;
+  // Build list of allowed time ranges (empty array = any time)
+  const timeRanges: Array<{ start: string; end: string }> = [];
+  if (windows.length === 0) {
+    timeRanges.push({ start: '00:00', end: '23:59' });
+  } else {
+    for (const window of windows) {
+      const config = settings.availability_presets[window];
+      timeRanges.push({ start: config.start, end: config.end });
+    }
   }
 
   const isSlotInWindow = (slotTime: string): boolean => {
-    return slotTime >= windowStart && slotTime < windowEnd;
+    return timeRanges.some(range => slotTime >= range.start && slotTime < range.end);
   };
 
   // Find first contiguous block of available slots
@@ -285,7 +290,7 @@ export const findNextAvailableSlot = (
 export const findNextAvailableDay = (
   startDate: string,
   duration: number,
-  preset: AvailabilityPreset,
+  windows: AvailabilityWindows,
   events: CalendarEvent[],
   tasks: Task[],
   maxDays = 7
@@ -294,7 +299,7 @@ export const findNextAvailableDay = (
 
   for (let i = 0; i < maxDays; i++) {
     const dateStr = format(currentDate, 'yyyy-MM-dd');
-    const time = findNextAvailableSlot(dateStr, duration, preset, events, tasks);
+    const time = findNextAvailableSlot(dateStr, duration, windows, events, tasks);
     
     if (time) {
       return { date: dateStr, time };
@@ -636,31 +641,33 @@ export const scheduleTasksIgnoringAll = (
 };
 
 /**
- * Find best slot for a task respecting its preset
+ * Find best slot for a task respecting its availability windows
  * Includes real-time past check to ensure we never schedule in the past
  */
 const findBestSlotForTask = (task: Task, slots: ScheduleSlot[], targetDate: string): ScheduleSlot | null => {
   const requiredSlots = Math.ceil(task.duration / 15);
   const settings = getSettings();
-  const preset = task.availability_preset || 'any';
+  const windows = task.availability_windows || [];
 
-  // Get time window for the preset
-  let windowStart = '00:00';
-  let windowEnd = '23:59';
-  if (preset !== 'any') {
-    const presetConfig = settings.availability_presets[preset];
-    windowStart = presetConfig.start;
-    windowEnd = presetConfig.end;
+  // Build list of allowed time ranges (empty array = any time)
+  const timeRanges: Array<{ start: string; end: string }> = [];
+  if (windows.length === 0) {
+    timeRanges.push({ start: '00:00', end: '23:59' });
+  } else {
+    for (const window of windows) {
+      const config = settings.availability_presets[window];
+      timeRanges.push({ start: config.start, end: config.end });
+    }
   }
 
   const isSlotInWindow = (slotTime: string): boolean => {
-    return slotTime >= windowStart && slotTime < windowEnd;
+    return timeRanges.some(range => slotTime >= range.start && slotTime < range.end);
   };
 
   for (let i = 0; i <= slots.length - requiredSlots; i++) {
     // Real-time check: skip if this slot is now in the past
     if (isSlotInPast(slots[i].time, targetDate)) continue;
-    
+
     const block = slots.slice(i, i + requiredSlots);
     if (block.every(slot => slot.available && isSlotInWindow(slot.time))) {
       return slots[i];

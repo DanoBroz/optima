@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel, DayIntention, AvailabilityPreset } from '@/types/task';
+import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel, DayIntention, AvailabilityWindows } from '@/types/task';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { taskRepository } from '@/data/taskRepository';
@@ -441,18 +441,18 @@ export function useTasks(selectedDate: Date = new Date()) {
 
   const findNextSlotToday = (
     duration: number,
-    preset: AvailabilityPreset
+    windows: AvailabilityWindows
   ): string | null => {
-    return scheduleService.findNextSlot(dateStr, duration, preset, events, tasks);
+    return scheduleService.findNextSlot(dateStr, duration, windows, events, tasks);
   };
 
   const findNextSlotTomorrow = (
     duration: number,
-    preset: AvailabilityPreset
+    windows: AvailabilityWindows
   ): { date: string; time: string } | null => {
     const tomorrow = addDays(selectedDate, 1);
     const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-    const time = scheduleService.findNextSlot(tomorrowStr, duration, preset, events, tasks);
+    const time = scheduleService.findNextSlot(tomorrowStr, duration, windows, events, tasks);
     if (time) {
       return { date: tomorrowStr, time };
     }

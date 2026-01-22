@@ -1,4 +1,4 @@
-import type { AvailabilityPreset, CalendarEvent, DailyEnergyLevel, Task } from '@/types/task';
+import type { AvailabilityWindows, CalendarEvent, DailyEnergyLevel, Task } from '@/types/task';
 import {
   autoScheduleTasks,
   autoScheduleSelectedTasks,
@@ -100,11 +100,11 @@ export const scheduleService = {
   findNextSlot(
     targetDate: string,
     duration: number,
-    preset: AvailabilityPreset,
+    windows: AvailabilityWindows,
     events: CalendarEvent[],
     tasks: Task[]
   ): string | null {
-    return findNextAvailableSlot(targetDate, duration, preset, events, tasks);
+    return findNextAvailableSlot(targetDate, duration, windows, events, tasks);
   },
 
   /**
@@ -113,12 +113,12 @@ export const scheduleService = {
   findNextDay(
     startDate: string,
     duration: number,
-    preset: AvailabilityPreset,
+    windows: AvailabilityWindows,
     events: CalendarEvent[],
     tasks: Task[],
     maxDays = 7
   ): { date: string; time: string } | null {
-    return findNextAvailableDay(startDate, duration, preset, events, tasks, maxDays);
+    return findNextAvailableDay(startDate, duration, windows, events, tasks, maxDays);
   },
 
   /**

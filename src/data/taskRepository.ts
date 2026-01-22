@@ -1,6 +1,31 @@
-import type { Task } from '@/types/task';
+import type { Task, TimeWindow, AvailabilityWindows } from '@/types/task';
 import type { TaskRow, TaskInsert } from '@/types/supabase';
 import { supabase } from '@/lib/supabase';
+
+// Parse availability_windows from DB (handles legacy string format and new array format)
+const parseAvailabilityWindows = (value: unknown): AvailabilityWindows => {
+  if (!value) return [];
+
+  // Handle legacy single string values: 'any', 'morning', 'afternoon', 'evening'
+  if (typeof value === 'string') {
+    if (value === 'any' || value === '') return [];
+    if (['morning', 'afternoon', 'evening'].includes(value)) {
+      return [value as TimeWindow];
+    }
+    // Try parsing as JSON array
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed as AvailabilityWindows;
+    } catch {
+      return [];
+    }
+  }
+
+  // Handle array from DB (some DBs return arrays directly)
+  if (Array.isArray(value)) return value as AvailabilityWindows;
+
+  return [];
+};
 
 // Convert DB row to app Task type (they're compatible, just need user_id handling)
 const toTask = (row: TaskRow): Task => ({
@@ -15,7 +40,7 @@ const toTask = (row: TaskRow): Task => ({
   priority: row.priority,
   energy_level: row.energy_level,
   motivation_level: row.motivation_level,
-  availability_preset: (row as TaskRow & { availability_preset?: string }).availability_preset as Task['availability_preset'] || 'any',
+  availability_windows: parseAvailabilityWindows((row as TaskRow & { availability_windows?: unknown }).availability_windows),
   is_locked: row.is_locked,
   order_index: row.order_index,
   created_at: row.created_at,
@@ -46,7 +71,7 @@ export const taskRepository = {
       priority: task.priority,
       energy_level: task.energy_level,
       motivation_level: task.motivation_level,
-      availability_preset: task.availability_preset,
+      availability_windows: task.availability_windows,
       is_locked: task.is_locked,
       order_index: task.order_index,
     } as TaskInsert;
