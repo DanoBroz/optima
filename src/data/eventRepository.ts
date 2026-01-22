@@ -117,4 +117,16 @@ export const eventRepository = {
     const { error } = await supabase.from('calendar_events').insert(insertData as never);
     if (error) throw error;
   },
+
+  async clearExternal(): Promise<number> {
+    // Delete all external/synced events and return count
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .delete()
+      .eq('is_external', true)
+      .select('id');
+
+    if (error) throw error;
+    return data?.length ?? 0;
+  },
 };

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Upload, Calendar, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Upload, Calendar, RefreshCw, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/task';
 
@@ -7,20 +7,31 @@ interface SyncCalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[]) => Promise<void>;
+  onClearSyncedEvents: () => Promise<number>;
   selectedDate: Date;
 }
 
-type SyncStep = 'instructions' | 'importing' | 'success' | 'error';
+type SyncStep = 'instructions' | 'select-calendars' | 'select-events' | 'importing' | 'success' | 'error' | 'clearing' | 'cleared';
+
+// Event with calendar source info for filtering
+interface ParsedEvent extends Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'> {
+  calendarName?: string;
+}
 
 const DRAG_THRESHOLD = 120;
 
-export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: SyncCalendarModalProps) {
+export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEvents, selectedDate }: SyncCalendarModalProps) {
   const [step, setStep] = useState<SyncStep>('instructions');
   const [importedCount, setImportedCount] = useState(0);
+  const [clearedCount, setClearedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [isFileDragging, setIsFileDragging] = useState(false);
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [parsedEvents, setParsedEvents] = useState<ParsedEvent[]>([]);
+  const [availableCalendars, setAvailableCalendars] = useState<string[]>([]);
+  const [selectedCalendars, setSelectedCalendars] = useState<Set<string>>(new Set());
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragStartY = useRef(0);
   const handleRef = useRef<HTMLDivElement>(null);
@@ -63,14 +74,12 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
       return;
     }
 
-    setStep('importing');
     try {
       const text = await file.text();
-      const allEvents = parseICSFile(text);
+      const allEvents = parseICSFile(text) as ParsedEvent[];
 
       // Apply +1 hour correction for macOS Calendar export bug
-      // macOS exports times 1 hour earlier than displayed
-      const MACOS_OFFSET_CORRECTION_MS = 60 * 60 * 1000; // +1 hour
+      const MACOS_OFFSET_CORRECTION_MS = 60 * 60 * 1000;
       const correctedEvents = allEvents.map(event => ({
         ...event,
         start_time: new Date(new Date(event.start_time).getTime() + MACOS_OFFSET_CORRECTION_MS).toISOString(),
@@ -78,14 +87,49 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
       }));
 
       // Filter events to only include those on the selected date
-      const selectedDateStr = selectedDate.toISOString().split('T')[0]; // "2026-01-22"
+      const selectedDateStr = selectedDate.toISOString().split('T')[0];
       const filteredEvents = correctedEvents.filter(event => {
         const eventDateStr = event.start_time.split('T')[0];
         return eventDateStr === selectedDateStr;
       });
 
-      await onImport(filteredEvents);
-      setImportedCount(filteredEvents.length);
+      // Extract unique calendar names
+      const calendars = new Set<string>();
+      filteredEvents.forEach(e => {
+        if (e.calendarName) calendars.add(e.calendarName);
+      });
+      const calendarList = Array.from(calendars).sort();
+
+      console.log('[ICS Import] Calendars found:', calendarList);
+      console.log('[ICS Import] Events for', selectedDateStr, ':', filteredEvents.length);
+
+      setParsedEvents(filteredEvents);
+      setAvailableCalendars(calendarList);
+      setSelectedCalendars(new Set(calendarList));
+      // Select all events by default (use index as ID)
+      setSelectedEventIds(new Set(filteredEvents.map((_, i) => i)));
+
+      // Always show event selection so user can review/deselect
+      if (filteredEvents.length > 0) {
+        setStep('select-events');
+      } else {
+        setErrorMessage('No events found for this date');
+        setStep('error');
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to import calendar');
+      setStep('error');
+    }
+  };
+
+  const importFilteredEvents = async (events: ParsedEvent[]) => {
+    setStep('importing');
+    try {
+      // Remove calendarName before importing (it's not part of CalendarEvent type)
+      const eventsToImport = events.map(({ calendarName, ...event }) => event);
+      await onImport(eventsToImport);
+      setImportedCount(eventsToImport.length);
       setStep('success');
 
       setTimeout(() => {
@@ -97,6 +141,42 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
       setErrorMessage(error instanceof Error ? error.message : 'Failed to import calendar');
       setStep('error');
     }
+  };
+
+  const handleImportSelectedCalendars = async () => {
+    const filtered = parsedEvents.filter(
+      e => !e.calendarName || selectedCalendars.has(e.calendarName)
+    );
+    await importFilteredEvents(filtered);
+  };
+
+  const toggleCalendar = (calendar: string) => {
+    setSelectedCalendars(prev => {
+      const next = new Set(prev);
+      if (next.has(calendar)) {
+        next.delete(calendar);
+      } else {
+        next.add(calendar);
+      }
+      return next;
+    });
+  };
+
+  const toggleEvent = (index: number) => {
+    setSelectedEventIds(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const handleImportSelectedEvents = async () => {
+    const selectedEvents = parsedEvents.filter((_, i) => selectedEventIds.has(i));
+    await importFilteredEvents(selectedEvents);
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,10 +208,33 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
   const resetModal = () => {
     setStep('instructions');
     setImportedCount(0);
+    setClearedCount(0);
     setErrorMessage('');
     setIsFileDragging(false);
+    setParsedEvents([]);
+    setAvailableCalendars([]);
+    setSelectedCalendars(new Set());
+    setSelectedEventIds(new Set());
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClearSyncedEvents = async () => {
+    setStep('clearing');
+    try {
+      const count = await onClearSyncedEvents();
+      setClearedCount(count);
+      setStep('cleared');
+
+      setTimeout(() => {
+        onClose();
+        resetModal();
+      }, 2000);
+    } catch (error) {
+      console.error('Clear error:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to clear synced events');
+      setStep('error');
     }
   };
 
@@ -239,6 +342,132 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
                   <strong>Note:</strong> Events will be imported with their energy drain calculated
                   based on duration. You can edit individual events after import to adjust settings.
                 </div>
+
+                <button
+                  onClick={handleClearSyncedEvents}
+                  className="w-full py-3 bg-destructive/10 text-destructive rounded-xl font-medium transition-all hover:bg-destructive/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear all synced events
+                </button>
+              </div>
+            )}
+
+            {step === 'select-calendars' && (
+              <div className="space-y-5">
+                <div className="text-center">
+                  <h3 className="font-semibold mb-1">Select calendars to import</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {parsedEvents.length} events found for today
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {availableCalendars.map(calendar => {
+                    const eventCount = parsedEvents.filter(e => e.calendarName === calendar).length;
+                    return (
+                      <label
+                        key={calendar}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors",
+                          selectedCalendars.has(calendar)
+                            ? "bg-primary/10 border border-primary/30"
+                            : "bg-secondary/50 border border-transparent hover:bg-secondary"
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCalendars.has(calendar)}
+                          onChange={() => toggleCalendar(calendar)}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{calendar}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {eventCount} event{eventCount !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep('instructions')}
+                    className="flex-1 py-3 bg-secondary text-foreground rounded-xl font-medium transition-all hover:bg-secondary/80 active:scale-[0.98]"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleImportSelectedCalendars}
+                    disabled={selectedCalendars.size === 0}
+                    className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold transition-all hover:shadow-card active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Import ({parsedEvents.filter(e => !e.calendarName || selectedCalendars.has(e.calendarName)).length})
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 'select-events' && (
+              <div className="space-y-5">
+                <div className="text-center">
+                  <h3 className="font-semibold mb-1">Select events to import</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {parsedEvents.length} events found • Deselect any you don't want
+                  </p>
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {parsedEvents.map((event, index) => {
+                    const startTime = new Date(event.start_time).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    });
+                    return (
+                      <label
+                        key={index}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors",
+                          selectedEventIds.has(index)
+                            ? "bg-primary/10 border border-primary/30"
+                            : "bg-secondary/30 border border-transparent hover:bg-secondary/50 opacity-60"
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedEventIds.has(index)}
+                          onChange={() => toggleEvent(index)}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{event.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {startTime} {event.location && `• ${event.location}`}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep('instructions')}
+                    className="flex-1 py-3 bg-secondary text-foreground rounded-xl font-medium transition-all hover:bg-secondary/80 active:scale-[0.98]"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleImportSelectedEvents}
+                    disabled={selectedEventIds.size === 0}
+                    className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold transition-all hover:shadow-card active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Import ({selectedEventIds.size})
+                  </button>
+                </div>
               </div>
             )}
 
@@ -259,6 +488,28 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, selectedDate }: S
                   <p className="font-semibold">Successfully imported!</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {importedCount} event{importedCount !== 1 ? 's' : ''} added to your calendar
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 'clearing' && (
+              <div className="py-8 text-center space-y-4">
+                <RefreshCw className="w-12 h-12 mx-auto text-destructive animate-spin" />
+                <div>
+                  <p className="font-semibold">Clearing synced events...</p>
+                  <p className="text-sm text-muted-foreground mt-1">Please wait</p>
+                </div>
+              </div>
+            )}
+
+            {step === 'cleared' && (
+              <div className="py-8 text-center space-y-4">
+                <CheckCircle2 className="w-12 h-12 mx-auto text-success" />
+                <div>
+                  <p className="font-semibold">Cleared!</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {clearedCount} synced event{clearedCount !== 1 ? 's' : ''} removed
                   </p>
                 </div>
               </div>
@@ -566,9 +817,16 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
   let currentRRule: RRule | null = null;
   let currentExdates: Set<string> = new Set();
   let inEvent = false;
+  let currentCalendarName: string | undefined = undefined;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+
+    // Track calendar name from X-WR-CALNAME (at VCALENDAR level)
+    if (line.startsWith('X-WR-CALNAME:')) {
+      currentCalendarName = line.substring(13).trim();
+      console.log('[ICS Parser] Calendar name:', currentCalendarName);
+    }
 
     if (line === 'BEGIN:VEVENT') {
       inEvent = true;
@@ -578,14 +836,36 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
         end_time: '',
         location: undefined,
         is_external: true,
+        calendarName: currentCalendarName,
         energy_level: 'medium',
       };
       currentRRule = null;
       currentExdates = new Set();
     } else if (line === 'END:VEVENT' && currentEvent) {
-      // Only process events that have required fields and aren't cancelled
-      const isCancelled = currentEvent.status === 'CANCELLED';
-      if (currentEvent.title && currentEvent.start_time && currentEvent.end_time && !isCancelled) {
+      // Debug: log event status info for troubleshooting
+      if (currentEvent.title && (currentEvent.status || currentEvent.partstat || currentEvent.transparent)) {
+        console.log('[ICS Status]', currentEvent.title,
+          'STATUS:', currentEvent.status,
+          'PARTSTAT:', currentEvent.partstat,
+          'TRANSP:', currentEvent.transparent ? 'TRANSPARENT' : undefined);
+      }
+
+      // Only process events that have required fields and aren't cancelled/declined/hidden
+      const isCancelled = currentEvent.status === 'CANCELLED' ||
+                          currentEvent.method === 'CANCEL' ||
+                          currentEvent.msInstType === '3';
+      const isDeclined = currentEvent.partstat === 'DECLINED';
+      const isHidden = currentEvent.transparent === true;
+
+      // Debug: log what's being filtered
+      if (isCancelled || isDeclined || isHidden) {
+        console.log('[ICS Filter] Skipping:', currentEvent.title,
+          isCancelled ? '(CANCELLED)' : '',
+          isDeclined ? '(DECLINED)' : '',
+          isHidden ? '(TRANSPARENT)' : '');
+      }
+
+      if (currentEvent.title && currentEvent.start_time && currentEvent.end_time && !isCancelled && !isDeclined && !isHidden) {
         if (currentRRule) {
           // Expand recurring event into instances
           const instances = expandRecurringEvent(currentEvent, currentRRule, currentExdates);
@@ -629,6 +909,31 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
       } else if (line.startsWith('STATUS:')) {
         // Track event status (CONFIRMED, TENTATIVE, CANCELLED)
         currentEvent.status = line.substring(7).trim();
+      } else if (line.startsWith('METHOD:')) {
+        // Track ICS method (REQUEST, CANCEL, etc.)
+        currentEvent.method = line.substring(7).trim();
+      } else if (line.startsWith('X-MICROSOFT-CDO-INSTTYPE:')) {
+        // Microsoft instance type: 0=single, 1=master, 2=instance, 3=cancelled
+        currentEvent.msInstType = line.substring(25).trim();
+      } else if (line.startsWith('ATTENDEE') && line.includes('PARTSTAT=')) {
+        // Extract participation status from ATTENDEE line
+        // Format: ATTENDEE;PARTSTAT=DECLINED;CN=Name:mailto:email
+        const partstatMatch = line.match(/PARTSTAT=([^;:]+)/);
+        if (partstatMatch) {
+          const partstat = partstatMatch[1];
+          // If this is "me" (has CUTYPE=INDIVIDUAL and the organizer is different)
+          // Or if it's marked as DECLINED, track it
+          // For simplicity, track the first DECLINED we find
+          if (partstat === 'DECLINED' && !currentEvent.partstat) {
+            currentEvent.partstat = partstat;
+          }
+        }
+      } else if (line.startsWith('TRANSP:')) {
+        // TRANSP:TRANSPARENT means the event doesn't block time (declined/free)
+        const transp = line.substring(7).trim();
+        if (transp === 'TRANSPARENT') {
+          currentEvent.transparent = true;
+        }
       }
     }
   }

@@ -637,6 +637,23 @@ export function useTasks(selectedDate: Date = new Date()) {
     }
   };
 
+  const clearExternalEvents = async (): Promise<number> => {
+    if (!user) {
+      toast.error('Please sign in to clear events');
+      return 0;
+    }
+
+    try {
+      const count = await eventRepository.clearExternal();
+      setEvents(prev => prev.filter(event => !event.is_external));
+      return count;
+    } catch (error) {
+      console.error('Error clearing external events:', error);
+      toast.error('Failed to clear synced events');
+      throw error;
+    }
+  };
+
   const importEvents = async (
     eventsToImport: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[]
   ) => {
@@ -730,6 +747,7 @@ export function useTasks(selectedDate: Date = new Date()) {
         update: updateEvent,
         remove: deleteEvent,
         import: importEvents,
+        clearExternal: clearExternalEvents,
       },
       energy: {
         setLevel: setDailyEnergyLevel,
