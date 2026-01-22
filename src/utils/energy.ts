@@ -3,6 +3,7 @@ import { getDurationMinutes } from './time';
 
 
 const ENERGY_DRAIN_MULTIPLIERS: Record<EventEnergyLevel, number> = {
+  restful: 0,
   low: 0.5,
   medium: 1.0,
   high: 1.5,
@@ -22,7 +23,7 @@ const INTENTION_MULTIPLIERS: Record<DayIntention, number> = {
   recovery: 0.6,
 };
 
-export type EventEnergyLevel = 'low' | 'medium' | 'high';
+export type EventEnergyLevel = 'restful' | 'low' | 'medium' | 'high';
 
 export const getDailyEnergyMultiplier = (energy: DailyEnergyLevel): number => {
   return DAILY_ENERGY_MULTIPLIERS[energy];

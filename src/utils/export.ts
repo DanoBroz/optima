@@ -59,7 +59,7 @@ interface BackupData {
     external_id?: string | null;
     calendar_source?: string | null;
     location?: string | null;
-    energy_level?: 'low' | 'medium' | 'high';
+    energy_level?: 'restful' | 'low' | 'medium' | 'high';
     energy_drain?: number | null;
     created_at?: string;
     updated_at?: string;

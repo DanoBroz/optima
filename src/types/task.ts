@@ -42,7 +42,7 @@ export interface CalendarEvent {
   external_id?: string | null;
   calendar_source?: string | null;
   location?: string | null;
-  energy_level?: 'low' | 'medium' | 'high';
+  energy_level?: 'restful' | 'low' | 'medium' | 'high';
   energy_drain?: number | null; // Override drain in minutes (null = use duration)
   is_dismissed?: boolean; // Synced events can be dismissed (ghosted) without deleting
   created_at?: string;

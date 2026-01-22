@@ -9,7 +9,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================
 
 CREATE TYPE priority_level AS ENUM ('low', 'medium', 'high');
-CREATE TYPE energy_level AS ENUM ('low', 'medium', 'high');
+CREATE TYPE energy_level AS ENUM ('restful', 'low', 'medium', 'high');
+-- Note: To add 'restful' to existing database, run:
+-- ALTER TYPE energy_level ADD VALUE 'restful' BEFORE 'low';
 CREATE TYPE motivation_level AS ENUM ('hate', 'dislike', 'neutral', 'like', 'love');
 CREATE TYPE daily_energy_level AS ENUM ('exhausted', 'low', 'medium', 'high', 'energized');
 

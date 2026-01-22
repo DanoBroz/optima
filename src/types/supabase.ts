@@ -77,7 +77,7 @@ export interface Database {
           external_id: string | null;
           calendar_source: string | null;
           location: string | null;
-          energy_level: 'low' | 'medium' | 'high' | null;
+          energy_level: 'restful' | 'low' | 'medium' | 'high' | null;
           energy_drain: number | null;
           is_dismissed: boolean;
           created_at: string;
@@ -93,7 +93,7 @@ export interface Database {
           external_id?: string | null;
           calendar_source?: string | null;
           location?: string | null;
-          energy_level?: 'low' | 'medium' | 'high' | null;
+          energy_level?: 'restful' | 'low' | 'medium' | 'high' | null;
           energy_drain?: number | null;
           is_dismissed?: boolean;
           created_at?: string;
@@ -109,7 +109,7 @@ export interface Database {
           external_id?: string | null;
           calendar_source?: string | null;
           location?: string | null;
-          energy_level?: 'low' | 'medium' | 'high' | null;
+          energy_level?: 'restful' | 'low' | 'medium' | 'high' | null;
           energy_drain?: number | null;
           is_dismissed?: boolean;
           created_at?: string;
@@ -152,7 +152,7 @@ export interface Database {
     Functions: Record<string, never>;
     Enums: {
       priority_level: 'low' | 'medium' | 'high';
-      energy_level: 'low' | 'medium' | 'high';
+      energy_level: 'restful' | 'low' | 'medium' | 'high';
       motivation_level: 'hate' | 'dislike' | 'neutral' | 'like' | 'love';
       daily_energy_level: 'exhausted' | 'low' | 'medium' | 'high' | 'energized';
     };

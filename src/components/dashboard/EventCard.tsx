@@ -19,6 +19,7 @@ export function EventCard({ event, onClick, onRestore }: EventCardProps) {
   const energyLevel = getEventEnergyLevel(event);
   const drain = getEventDrainMinutes(event);
   const energyConfig = {
+    restful: { emoji: '🌿', label: 'Restful', bg: 'bg-sky-100', border: 'border-sky-200', accent: 'text-sky-600' },
     low: { emoji: '🧘', label: 'Light', bg: 'bg-success/10', border: 'border-success/20', accent: 'text-success' },
     medium: { emoji: '💼', label: 'Normal', bg: 'bg-primary/10', border: 'border-primary/20', accent: 'text-primary' },
     high: { emoji: '🔥', label: 'Draining', bg: 'bg-destructive/10', border: 'border-destructive/20', accent: 'text-destructive' },
@@ -47,7 +48,7 @@ export function EventCard({ event, onClick, onRestore }: EventCardProps) {
         {!isDismissed && (
           <div className={cn(
             "flex-shrink-0 w-1.5 self-stretch rounded-full",
-            energyLevel === 'high' ? "bg-destructive" : energyLevel === 'low' ? "bg-success" : "bg-primary"
+            energyLevel === 'high' ? "bg-destructive" : energyLevel === 'low' ? "bg-success" : energyLevel === 'restful' ? "bg-sky-500" : "bg-primary"
           )} />
         )}
         <div className="flex-1 min-w-0">

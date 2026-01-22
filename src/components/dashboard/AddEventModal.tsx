@@ -16,13 +16,15 @@ interface AddEventModalProps {
   editEvent?: CalendarEvent | null;
 }
 
-const energyOptions: { level: 'low' | 'medium' | 'high'; emoji: string; label: string; description: string }[] = [
+const energyOptions: { level: 'restful' | 'low' | 'medium' | 'high'; emoji: string; label: string; description: string }[] = [
+  { level: 'restful', emoji: '🌿', label: 'Restful', description: 'Recharging, restorative' },
   { level: 'low', emoji: '🧘', label: 'Light', description: 'Relaxing, recovery' },
   { level: 'medium', emoji: '💼', label: 'Normal', description: 'Regular activity' },
   { level: 'high', emoji: '🔥', label: 'Draining', description: 'Intense, exhausting' },
 ];
 
-const drainMultipliers: Record<'low' | 'medium' | 'high', number> = {
+const drainMultipliers: Record<'restful' | 'low' | 'medium' | 'high', number> = {
+  restful: 0,  // Restful events don't drain capacity
   low: 0.5,    // Light events drain 50% of their duration
   medium: 1.0, // Normal events drain 100% of their duration
   high: 1.5,   // Draining events drain 150% of their duration
@@ -35,7 +37,7 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, onDi
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [location, setLocation] = useState('');
-  const [energyLevel, setEnergyLevel] = useState<'low' | 'medium' | 'high'>('medium');
+  const [energyLevel, setEnergyLevel] = useState<'restful' | 'low' | 'medium' | 'high'>('medium');
   const [useCustomDrain, setUseCustomDrain] = useState(false);
   const [customDrain, setCustomDrain] = useState(60);
   const [dragY, setDragY] = useState(0);
@@ -321,7 +323,7 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, onDi
               <label className="block text-sm font-medium text-muted-foreground mb-2">
                 How draining is this event?
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {energyOptions.map(({ level, emoji, label, description }) => (
                   <button
                     key={level}
