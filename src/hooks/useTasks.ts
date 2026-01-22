@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel, AvailabilityPreset } from '@/types/task';
+import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel, DayIntention, AvailabilityPreset } from '@/types/task';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { taskRepository } from '@/data/taskRepository';
@@ -8,6 +8,7 @@ import { energyRepository } from '@/data/energyRepository';
 import { scheduleService } from '@/services/scheduleService';
 import { calculateCapacity } from '@/services/capacityService';
 import { getDayTimeRange } from '@/utils/time';
+import { getSettings, saveSettings } from '@/utils/settings';
 import { useAuth } from '@/hooks/useAuth';
 
 const DEFAULT_DAILY_ENERGY: DailyEnergyLevel = 'medium';
@@ -19,6 +20,7 @@ export function useTasks(selectedDate: Date = new Date()) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [dailyEnergy, setDailyEnergy] = useState<DailyEnergy | null>(null);
+  const [dayIntention, setDayIntentionState] = useState<DayIntention>(() => getSettings().day_intention);
   const [loading, setLoading] = useState(true);
   const [isScheduling, setIsScheduling] = useState(false);
 
@@ -43,11 +45,9 @@ export function useTasks(selectedDate: Date = new Date()) {
   const fetchEvents = useCallback(async () => {
     try {
       const { startOfDay, endOfDay } = getDayTimeRange(dateStr);
-      const allEvents = await eventRepository.getAll();
-      const filteredEvents = allEvents.filter(
-        event => event.start_time >= startOfDay && event.start_time <= endOfDay
-      );
-      setEvents(filteredEvents);
+      // Use server-side filtering to avoid Supabase row limits
+      const events = await eventRepository.getByDateRange(startOfDay, endOfDay);
+      setEvents(events);
     } catch (error) {
       console.error('Error fetching events:', error);
     }
@@ -105,6 +105,12 @@ export function useTasks(selectedDate: Date = new Date()) {
       console.error('Error setting daily energy:', error);
       toast.error('Failed to update energy level');
     }
+  };
+
+  const setDayIntention = (intention: DayIntention) => {
+    setDayIntentionState(intention);
+    const settings = getSettings();
+    saveSettings({ ...settings, day_intention: intention });
   };
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
@@ -625,8 +631,21 @@ export function useTasks(selectedDate: Date = new Date()) {
     }
 
     try {
+      // Get existing external_ids to detect duplicates
+      const existingIds = await eventRepository.getExistingExternalIds();
+
+      // Filter out events that already exist (by external_id)
+      const uniqueEvents = eventsToImport.filter(
+        event => !event.external_id || !existingIds.has(event.external_id)
+      );
+
+      if (uniqueEvents.length === 0) {
+        toast.info('All events already imported');
+        return;
+      }
+
       const timestamp = createTimestamp();
-      const newEvents: CalendarEvent[] = eventsToImport.map(event => ({
+      const newEvents: CalendarEvent[] = uniqueEvents.map(event => ({
         ...event,
         id: self.crypto.randomUUID(),
         user_id: user.id,
@@ -635,8 +654,23 @@ export function useTasks(selectedDate: Date = new Date()) {
       }));
 
       await eventRepository.bulkAdd(newEvents);
-      setEvents(prev => [...prev, ...newEvents]);
-      toast.success(`Imported ${newEvents.length} events`);
+
+      // Filter imported events by current date before adding to state
+      const { startOfDay, endOfDay } = getDayTimeRange(dateStr);
+      const startMs = new Date(startOfDay).getTime();
+      const endMs = new Date(endOfDay).getTime();
+      const filteredNewEvents = newEvents.filter(event => {
+        const eventMs = new Date(event.start_time).getTime();
+        return eventMs >= startMs && eventMs <= endMs;
+      });
+
+      setEvents(prev => [...prev, ...filteredNewEvents]);
+
+      const skippedCount = eventsToImport.length - uniqueEvents.length;
+      const message = skippedCount > 0
+        ? `Imported ${newEvents.length} events (${skippedCount} duplicates skipped)`
+        : `Imported ${newEvents.length} events`;
+      toast.success(message);
     } catch (error) {
       console.error('Error importing events:', error);
       toast.error('Failed to import events');
@@ -645,8 +679,8 @@ export function useTasks(selectedDate: Date = new Date()) {
   };
 
   const capacity = useMemo(
-    () => calculateCapacity(tasks, events, dailyEnergy?.energy_level),
-    [tasks, events, dailyEnergy]
+    () => calculateCapacity(tasks, events, dailyEnergy?.energy_level, dayIntention),
+    [tasks, events, dailyEnergy, dayIntention]
   );
 
   const scheduledTasks = useMemo(() => tasks.filter(task => task.scheduled_time), [tasks]);
@@ -658,6 +692,7 @@ export function useTasks(selectedDate: Date = new Date()) {
     unscheduledTasks,
     events,
     dailyEnergy,
+    dayIntention,
     loading,
     isScheduling,
     capacity,
@@ -683,6 +718,9 @@ export function useTasks(selectedDate: Date = new Date()) {
       },
       energy: {
         setLevel: setDailyEnergyLevel,
+      },
+      intention: {
+        set: setDayIntention,
       },
       refresh: {
         tasks: fetchTasks,

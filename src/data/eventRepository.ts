@@ -15,19 +15,49 @@ const toEvent = (row: EventRow): CalendarEvent => ({
   location: row.location,
   energy_level: row.energy_level ?? undefined,
   energy_drain: row.energy_drain,
+  is_dismissed: row.is_dismissed,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
 
 export const eventRepository = {
   async getAll(): Promise<CalendarEvent[]> {
+    // Supabase defaults to 1000 rows - we need more for expanded recurring events
     const { data, error } = await supabase
       .from('calendar_events')
       .select('*')
+      .order('start_time', { ascending: true })
+      .limit(10000);
+
+    if (error) throw error;
+    return ((data ?? []) as EventRow[]).map(toEvent);
+  },
+
+  async getByDateRange(startDate: string, endDate: string): Promise<CalendarEvent[]> {
+    // Filter on server to avoid fetching all events
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .select('*')
+      .gte('start_time', startDate)
+      .lte('start_time', endDate)
       .order('start_time', { ascending: true });
 
     if (error) throw error;
     return ((data ?? []) as EventRow[]).map(toEvent);
+  },
+
+  async getExistingExternalIds(): Promise<Set<string>> {
+    // Get all external_ids to detect duplicates during sync
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .select('external_id')
+      .not('external_id', 'is', null);
+
+    if (error) throw error;
+    const ids = (data ?? [])
+      .map(row => row.external_id)
+      .filter((id): id is string => id !== null);
+    return new Set(ids);
   },
 
   async add(event: CalendarEvent): Promise<void> {

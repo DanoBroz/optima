@@ -272,12 +272,169 @@ export function SyncCalendarModal({ isOpen, onClose, onImport }: SyncCalendarMod
   );
 }
 
-// Simple ICS parser for calendar events
+// RRULE parsing types
+interface RRule {
+  freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  interval: number;
+  until?: Date;
+  count?: number;
+  byday?: string[]; // MO, TU, WE, TH, FR, SA, SU
+  bymonthday?: number[];
+}
+
+// Parse RRULE string into structured object
+function parseRRule(rruleLine: string): RRule | null {
+  const rule: RRule = { freq: 'DAILY', interval: 1 };
+
+  // Extract the rule part after RRULE:
+  const ruleStr = rruleLine.replace('RRULE:', '');
+  const parts = ruleStr.split(';');
+
+  for (const part of parts) {
+    const [key, value] = part.split('=');
+    switch (key) {
+      case 'FREQ':
+        if (['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(value)) {
+          rule.freq = value as RRule['freq'];
+        }
+        break;
+      case 'INTERVAL':
+        rule.interval = parseInt(value) || 1;
+        break;
+      case 'UNTIL':
+        // Parse UNTIL date (format: 20261231T235959Z or 20261231)
+        const untilDate = parseICSDateValue(value);
+        if (untilDate) rule.until = untilDate;
+        break;
+      case 'COUNT':
+        rule.count = parseInt(value);
+        break;
+      case 'BYDAY':
+        rule.byday = value.split(',');
+        break;
+      case 'BYMONTHDAY':
+        rule.bymonthday = value.split(',').map(d => parseInt(d));
+        break;
+    }
+  }
+
+  return rule;
+}
+
+// Parse a date value (without the property name)
+function parseICSDateValue(dateStr: string): Date | null {
+  if (!/^\d{8}/.test(dateStr)) return null;
+
+  const year = parseInt(dateStr.substring(0, 4));
+  const month = parseInt(dateStr.substring(4, 6)) - 1;
+  const day = parseInt(dateStr.substring(6, 8));
+
+  if (dateStr.includes('T')) {
+    const hour = parseInt(dateStr.substring(9, 11)) || 0;
+    const minute = parseInt(dateStr.substring(11, 13)) || 0;
+    const second = parseInt(dateStr.substring(13, 15)) || 0;
+    if (dateStr.endsWith('Z')) {
+      return new Date(Date.UTC(year, month, day, hour, minute, second));
+    }
+    return new Date(year, month, day, hour, minute, second);
+  }
+
+  return new Date(Date.UTC(year, month, day));
+}
+
+// Generate recurring event instances
+function expandRecurringEvent(
+  baseEvent: any,
+  rrule: RRule,
+  exdates: Set<string>
+): any[] {
+  const instances: any[] = [];
+  const startDate = new Date(baseEvent.start_time);
+  const endDate = new Date(baseEvent.end_time);
+  const duration = endDate.getTime() - startDate.getTime();
+
+  // Limit expansion: 1 year from now or UNTIL date, whichever is sooner
+  const now = new Date();
+  const maxDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+  const limitDate = rrule.until && rrule.until < maxDate ? rrule.until : maxDate;
+
+  // Start from the original date or 6 months ago (to catch recent past events)
+  const minDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+  let currentDate = new Date(startDate);
+  let count = 0;
+  const maxCount = rrule.count || 500; // Safety limit
+
+  while (currentDate <= limitDate && count < maxCount) {
+    const dateKey = currentDate.toISOString().split('T')[0];
+
+    // Check if this date should be included
+    let includeDate = !exdates.has(dateKey);
+
+    // For WEEKLY with BYDAY, check if current day matches
+    if (includeDate && rrule.freq === 'WEEKLY' && rrule.byday) {
+      const dayName = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][currentDate.getUTCDay()];
+      includeDate = rrule.byday.some(d => d.endsWith(dayName));
+    }
+
+    // For MONTHLY with BYMONTHDAY, check if current day matches
+    if (includeDate && rrule.freq === 'MONTHLY' && rrule.bymonthday) {
+      includeDate = rrule.bymonthday.includes(currentDate.getUTCDate());
+    }
+
+    // Only include dates within our relevant range
+    if (includeDate && currentDate >= minDate) {
+      const instanceStart = new Date(currentDate);
+      const instanceEnd = new Date(currentDate.getTime() + duration);
+
+      instances.push({
+        ...baseEvent,
+        start_time: instanceStart.toISOString(),
+        end_time: instanceEnd.toISOString(),
+        // Make external_id unique per instance
+        external_id: baseEvent.external_id ? `${baseEvent.external_id}_${dateKey}` : undefined,
+      });
+      count++;
+    }
+
+    // Advance to next occurrence based on frequency
+    switch (rrule.freq) {
+      case 'DAILY':
+        currentDate.setUTCDate(currentDate.getUTCDate() + rrule.interval);
+        break;
+      case 'WEEKLY':
+        if (rrule.byday) {
+          // Move to next day, the BYDAY check above will filter
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        } else {
+          currentDate.setUTCDate(currentDate.getUTCDate() + 7 * rrule.interval);
+        }
+        break;
+      case 'MONTHLY':
+        if (rrule.bymonthday) {
+          // Move to next day, the BYMONTHDAY check above will filter
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        } else {
+          currentDate.setUTCMonth(currentDate.getUTCMonth() + rrule.interval);
+        }
+        break;
+      case 'YEARLY':
+        currentDate.setUTCFullYear(currentDate.getUTCFullYear() + rrule.interval);
+        break;
+    }
+  }
+
+  return instances;
+}
+
+// Simple ICS parser for calendar events with RRULE support
 function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[] {
   const events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[] = [];
   const lines = icsContent.split(/\r?\n/);
 
   let currentEvent: any = null;
+  let currentRRule: RRule | null = null;
+  let currentExdates: Set<string> = new Set();
   let inEvent = false;
 
   for (let i = 0; i < lines.length; i++) {
@@ -293,12 +450,23 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
         is_external: true,
         energy_level: 'medium',
       };
+      currentRRule = null;
+      currentExdates = new Set();
     } else if (line === 'END:VEVENT' && currentEvent) {
-      // Only add events that have required fields
+      // Only process events that have required fields
       if (currentEvent.title && currentEvent.start_time && currentEvent.end_time) {
-        events.push(currentEvent);
+        if (currentRRule) {
+          // Expand recurring event into instances
+          const instances = expandRecurringEvent(currentEvent, currentRRule, currentExdates);
+          events.push(...instances);
+        } else {
+          // Single event
+          events.push(currentEvent);
+        }
       }
       currentEvent = null;
+      currentRRule = null;
+      currentExdates = new Set();
       inEvent = false;
     } else if (inEvent && currentEvent) {
       if (line.startsWith('SUMMARY:')) {
@@ -314,6 +482,18 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
       } else if (line.startsWith('UID:')) {
         currentEvent.external_id = line.substring(4);
         currentEvent.calendar_source = 'ios_calendar';
+      } else if (line.startsWith('RRULE:')) {
+        currentRRule = parseRRule(line);
+      } else if (line.startsWith('EXDATE')) {
+        // Parse exception dates (dates to skip in recurrence)
+        const colonIdx = line.indexOf(':');
+        if (colonIdx !== -1) {
+          const dateStr = line.substring(colonIdx + 1);
+          const exDate = parseICSDateValue(dateStr);
+          if (exDate) {
+            currentExdates.add(exDate.toISOString().split('T')[0]);
+          }
+        }
       }
     }
   }
@@ -331,6 +511,9 @@ function parseICSDateTime(line: string): string | null {
   const tzMatch = line.match(/TZID=([^:;]+)/);
   const timezone = tzMatch ? tzMatch[1] : null;
 
+  // Check if this is a date-only value (all-day event)
+  const isDateOnly = line.includes('VALUE=DATE') || !line.includes('T');
+
   // Extract datetime value (after the last colon)
   const colonIndex = line.lastIndexOf(':');
   if (colonIndex === -1) return null;
@@ -343,12 +526,16 @@ function parseICSDateTime(line: string): string | null {
   const month = parseInt(dateStr.substring(4, 6)) - 1; // 0-indexed for Date
   const day = parseInt(dateStr.substring(6, 8));
 
-  let hour = 0, minute = 0, second = 0;
-  if (dateStr.includes('T')) {
-    hour = parseInt(dateStr.substring(9, 11)) || 0;
-    minute = parseInt(dateStr.substring(11, 13)) || 0;
-    second = parseInt(dateStr.substring(13, 15)) || 0;
+  // For date-only values (all-day events), use UTC midnight
+  // This ensures consistent filtering regardless of local timezone
+  if (isDateOnly || !dateStr.includes('T')) {
+    return new Date(Date.UTC(year, month, day, 0, 0, 0)).toISOString();
   }
+
+  let hour = 0, minute = 0, second = 0;
+  hour = parseInt(dateStr.substring(9, 11)) || 0;
+  minute = parseInt(dateStr.substring(11, 13)) || 0;
+  second = parseInt(dateStr.substring(13, 15)) || 0;
 
   // If already UTC (ends with Z), create UTC date directly
   if (dateStr.endsWith('Z')) {
@@ -398,6 +585,6 @@ function parseICSDateTime(line: string): string | null {
     }
   }
 
-  // No timezone: treat as local timezone (all-day events or floating time)
+  // No timezone but has time: treat as local timezone
   return new Date(year, month, day, hour, minute, second).toISOString();
 }
