@@ -431,7 +431,7 @@ export function TimelineView({
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 md:overflow-hidden">
+    <div className="flex flex-col h-0 flex-grow md:overflow-hidden">
       {/* Desktop: Dual-pane layout */}
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Today's timeline */}
@@ -493,7 +493,7 @@ export function TimelineView({
       </div>
 
       {/* Mobile: Single timeline + tomorrow list below */}
-      <div className="md:hidden flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+      <div className="md:hidden h-0 flex-grow overflow-y-auto scrollbar-hide">
         {/* DraftBar - sticky header for mobile (inside scroll container) */}
         {draftBarProps && (
           <DraftBar
