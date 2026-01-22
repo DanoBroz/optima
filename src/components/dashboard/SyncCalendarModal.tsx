@@ -100,9 +100,6 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
       });
       const calendarList = Array.from(calendars).sort();
 
-      console.log('[ICS Import] Calendars found:', calendarList);
-      console.log('[ICS Import] Events for', selectedDateStr, ':', filteredEvents.length);
-
       setParsedEvents(filteredEvents);
       setAvailableCalendars(calendarList);
       setSelectedCalendars(new Set(calendarList));
@@ -825,7 +822,6 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
     // Track calendar name from X-WR-CALNAME (at VCALENDAR level)
     if (line.startsWith('X-WR-CALNAME:')) {
       currentCalendarName = line.substring(13).trim();
-      console.log('[ICS Parser] Calendar name:', currentCalendarName);
     }
 
     if (line === 'BEGIN:VEVENT') {
@@ -842,28 +838,12 @@ function parseICSFile(icsContent: string): Omit<CalendarEvent, 'id' | 'created_a
       currentRRule = null;
       currentExdates = new Set();
     } else if (line === 'END:VEVENT' && currentEvent) {
-      // Debug: log event status info for troubleshooting
-      if (currentEvent.title && (currentEvent.status || currentEvent.partstat || currentEvent.transparent)) {
-        console.log('[ICS Status]', currentEvent.title,
-          'STATUS:', currentEvent.status,
-          'PARTSTAT:', currentEvent.partstat,
-          'TRANSP:', currentEvent.transparent ? 'TRANSPARENT' : undefined);
-      }
-
       // Only process events that have required fields and aren't cancelled/declined/hidden
       const isCancelled = currentEvent.status === 'CANCELLED' ||
                           currentEvent.method === 'CANCEL' ||
                           currentEvent.msInstType === '3';
       const isDeclined = currentEvent.partstat === 'DECLINED';
       const isHidden = currentEvent.transparent === true;
-
-      // Debug: log what's being filtered
-      if (isCancelled || isDeclined || isHidden) {
-        console.log('[ICS Filter] Skipping:', currentEvent.title,
-          isCancelled ? '(CANCELLED)' : '',
-          isDeclined ? '(DECLINED)' : '',
-          isHidden ? '(TRANSPARENT)' : '');
-      }
 
       if (currentEvent.title && currentEvent.start_time && currentEvent.end_time && !isCancelled && !isDeclined && !isHidden) {
         if (currentRRule) {

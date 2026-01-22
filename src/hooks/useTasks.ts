@@ -57,11 +57,6 @@ export function useTasks(selectedDate: Date = new Date()) {
         return eventMs >= startMs && eventMs <= endMs;
       });
 
-      console.log('[fetchEvents]', dateStr, '- server:', events.length, 'client filtered:', filteredEvents.length);
-      if (events.length > 0) {
-        console.log('[fetchEvents] Sample event:', events[0].title, events[0].start_time);
-      }
-
       setEvents(filteredEvents);
     } catch (error) {
       console.error('Error fetching events:', error);

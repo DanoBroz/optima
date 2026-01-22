@@ -28,7 +28,7 @@ export function DraftBar({
   if (unscheduled > 0) summaryParts.push(`${unscheduled} couldn't fit`);
 
   return (
-    <div className="flex-shrink-0 bg-primary/5 border-b border-primary/20">
+    <div className="flex-shrink-0 sticky top-0 z-20 bg-primary/5 border-b border-primary/20">
       <div className="px-4 py-3">
         {/* Title row */}
         <div className="flex items-center justify-between gap-4">

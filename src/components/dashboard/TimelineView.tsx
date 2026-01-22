@@ -432,17 +432,6 @@ export function TimelineView({
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* DraftBar - non-scrolling header inside timeline card */}
-      {draftBarProps && (
-        <DraftBar
-          changesSummary={draftBarProps.changesSummary}
-          onCancel={draftBarProps.onCancel}
-          onReOptimize={draftBarProps.onReOptimize}
-          onApply={draftBarProps.onApply}
-          isProcessing={draftBarProps.isProcessing}
-        />
-      )}
-
       {/* Desktop: Dual-pane layout */}
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Today's timeline */}
@@ -454,46 +443,74 @@ export function TimelineView({
             hasTomorrowTasks && "border-r border-border/30"
           )}
         >
+          {/* DraftBar - sticky header for desktop (inside scroll container) */}
+          {draftBarProps && (
+            <DraftBar
+              changesSummary={draftBarProps.changesSummary}
+              onCancel={draftBarProps.onCancel}
+              onReOptimize={draftBarProps.onReOptimize}
+              onApply={draftBarProps.onApply}
+              isProcessing={draftBarProps.isProcessing}
+            />
+          )}
+
           {/* Date header - sticky (only show in draft mode with tomorrow tasks) */}
           {hasTomorrowTasks && (
-            <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30">
+            <div className={cn(
+              "sticky z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30",
+              draftBarProps ? "top-[60px]" : "top-0"
+            )}>
               <span className="text-sm font-semibold">Today · {formatDateHeader(currentDate)}</span>
             </div>
           )}
-          
-          {/* Today's timeline content */}
-          <div className="pb-24">
-            {renderTodayTimeline()}
-          </div>
-        </div>
 
-        {/* Tomorrow's timeline (only when has tasks) */}
-        {hasTomorrowTasks && (
-          <div
-            ref={tomorrowScrollRef}
-            onScroll={handleTomorrowScroll}
-            className="w-2/5 min-w-[280px] max-w-[420px] flex-shrink-0 overflow-y-auto scrollbar-hide bg-[hsl(var(--tomorrow)/0.3)]"
-          >
-            {/* Date header - sticky */}
-            <div className="sticky top-0 z-10 bg-[hsl(var(--tomorrow)/0.8)] backdrop-blur-sm px-4 py-2 border-b border-[hsl(var(--tomorrow-foreground)/0.2)]">
-              <span className="text-sm font-semibold text-[hsl(var(--tomorrow-foreground))]">
-                Tomorrow · {formatDateHeader(tomorrowDate)}
-              </span>
-            </div>
-            
-            {/* Tomorrow's compact timeline content */}
+            {/* Today's timeline content */}
             <div className="pb-24">
-              {renderTomorrowTimeline()}
+              {renderTodayTimeline()}
             </div>
           </div>
-        )}
+
+          {/* Tomorrow's timeline (only when has tasks) */}
+          {hasTomorrowTasks && (
+            <div
+              ref={tomorrowScrollRef}
+              onScroll={handleTomorrowScroll}
+              className="w-2/5 min-w-[280px] max-w-[420px] flex-shrink-0 overflow-y-auto scrollbar-hide bg-[hsl(var(--tomorrow)/0.3)]"
+            >
+              {/* Date header - sticky */}
+              <div className="sticky top-0 z-10 bg-[hsl(var(--tomorrow)/0.8)] backdrop-blur-sm px-4 py-2 border-b border-[hsl(var(--tomorrow-foreground)/0.2)]">
+                <span className="text-sm font-semibold text-[hsl(var(--tomorrow-foreground))]">
+                  Tomorrow · {formatDateHeader(tomorrowDate)}
+                </span>
+              </div>
+
+              {/* Tomorrow's compact timeline content */}
+              <div className="pb-24">
+                {renderTomorrowTimeline()}
+              </div>
+            </div>
+          )}
       </div>
 
       {/* Mobile: Single timeline + tomorrow list below */}
       <div className="md:hidden flex-1 overflow-y-auto scrollbar-hide">
+        {/* DraftBar - sticky header for mobile (inside scroll container) */}
+        {draftBarProps && (
+          <DraftBar
+            changesSummary={draftBarProps.changesSummary}
+            onCancel={draftBarProps.onCancel}
+            onReOptimize={draftBarProps.onReOptimize}
+            onApply={draftBarProps.onApply}
+            isProcessing={draftBarProps.isProcessing}
+          />
+        )}
+
         {/* Date header (only show in draft mode with tomorrow tasks) */}
         {hasTomorrowTasks && (
-          <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30">
+          <div className={cn(
+            "sticky z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30",
+            draftBarProps ? "top-[60px]" : "top-0"
+          )}>
             <span className="text-sm font-semibold">Today · {formatDateHeader(currentDate)}</span>
           </div>
         )}

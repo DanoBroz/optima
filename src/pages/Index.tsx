@@ -407,7 +407,7 @@ const Index = () => {
 
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen overflow-hidden bg-background flex flex-col">
       <Header 
         selectedDate={selectedDate}
         onDateChange={handleDateChange}
