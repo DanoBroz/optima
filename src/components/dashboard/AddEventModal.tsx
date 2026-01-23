@@ -422,18 +422,18 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, onDi
 
             {/* Action buttons */}
             <div className="flex gap-3">
-              {/* Delete button for manual events only */}
-              {isEditMode && !isExternalEvent && onDelete && (
+              {/* Delete button - available for all events (manual and synced) */}
+              {isEditMode && !isDismissedEvent && onDelete && (
                 <button
                   type="button"
                   onClick={handleDelete}
                   className="py-3.5 px-5 bg-destructive/10 text-destructive rounded-xl font-semibold transition-all hover:bg-destructive/20 active:scale-[0.98] flex items-center gap-2"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  {isExternalEvent ? 'Remove' : 'Delete'}
                 </button>
               )}
-              
+
               {/* Dismiss button for external (synced) events that are not already dismissed */}
               {isEditMode && isExternalEvent && !isDismissedEvent && onDismiss && (
                 <button
