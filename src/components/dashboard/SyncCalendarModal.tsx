@@ -443,22 +443,25 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
                   </p>
                 </div>
 
-                {/* Select/Deselect all buttons */}
-                <div className="flex justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedEventIds(new Set(parsedEvents.map((_, i) => i)))}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
-                  >
-                    Select all
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedEventIds(new Set())}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
-                  >
-                    Deselect all
-                  </button>
+                {/* Select/Deselect all button */}
+                <div className="flex justify-center">
+                  {selectedEventIds.size === parsedEvents.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEventIds(new Set())}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
+                    >
+                      Deselect all
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEventIds(new Set(parsedEvents.map((_, i) => i)))}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
+                    >
+                      Select all
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2 max-h-64 overflow-y-auto">
