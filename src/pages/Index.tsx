@@ -524,6 +524,7 @@ const Index = () => {
         onImport={eventActions.import}
         onClearSyncedEvents={eventActions.clearExternal}
         selectedDate={selectedDate}
+        existingEvents={events}
       />
       <SettingsModal
         isOpen={isSettingsModalOpen}

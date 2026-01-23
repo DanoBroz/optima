@@ -9,6 +9,7 @@ interface SyncCalendarModalProps {
   onImport: (events: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>[]) => Promise<void>;
   onClearSyncedEvents: () => Promise<number>;
   selectedDate: Date;
+  existingEvents: CalendarEvent[];
 }
 
 type SyncStep = 'instructions' | 'select-calendars' | 'select-events' | 'importing' | 'success' | 'error' | 'clearing' | 'cleared';
@@ -20,7 +21,7 @@ interface ParsedEvent extends Omit<CalendarEvent, 'id' | 'created_at' | 'updated
 
 const DRAG_THRESHOLD = 120;
 
-export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEvents, selectedDate }: SyncCalendarModalProps) {
+export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEvents, selectedDate, existingEvents }: SyncCalendarModalProps) {
   const [step, setStep] = useState<SyncStep>('instructions');
   const [importedCount, setImportedCount] = useState(0);
   const [clearedCount, setClearedCount] = useState(0);
@@ -32,6 +33,7 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
   const [availableCalendars, setAvailableCalendars] = useState<string[]>([]);
   const [selectedCalendars, setSelectedCalendars] = useState<Set<string>>(new Set());
   const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
+  const [eventOffsets, setEventOffsets] = useState<Map<number, number>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragStartY = useRef(0);
   const handleRef = useRef<HTMLDivElement>(null);
@@ -78,20 +80,22 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
       const text = await file.text();
       const allEvents = parseICSFile(text) as ParsedEvent[];
 
-      // Apply +1 hour correction for macOS Calendar export bug
-      const MACOS_OFFSET_CORRECTION_MS = 60 * 60 * 1000;
-      const correctedEvents = allEvents.map(event => ({
-        ...event,
-        start_time: new Date(new Date(event.start_time).getTime() + MACOS_OFFSET_CORRECTION_MS).toISOString(),
-        end_time: new Date(new Date(event.end_time).getTime() + MACOS_OFFSET_CORRECTION_MS).toISOString(),
-      }));
-
       // Filter events to only include those on the selected date
       const selectedDateStr = selectedDate.toISOString().split('T')[0];
-      const filteredEvents = correctedEvents.filter(event => {
+      const dateFilteredEvents = allEvents.filter(event => {
         const eventDateStr = event.start_time.split('T')[0];
         return eventDateStr === selectedDateStr;
       });
+
+      // Filter out events that already exist in the timeline (by external_id)
+      const existingExternalIds = new Set(
+        existingEvents
+          .filter(e => e.external_id)
+          .map(e => e.external_id)
+      );
+      const filteredEvents = dateFilteredEvents.filter(
+        event => !event.external_id || !existingExternalIds.has(event.external_id)
+      );
 
       // Extract unique calendar names
       const calendars = new Set<string>();
@@ -120,11 +124,18 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
     }
   };
 
-  const importFilteredEvents = async (events: ParsedEvent[]) => {
+  const importFilteredEvents = async (events: ParsedEvent[], offsets?: Map<number, number>) => {
     setStep('importing');
     try {
-      // Remove calendarName before importing (it's not part of CalendarEvent type)
-      const eventsToImport = events.map(({ calendarName, ...event }) => event);
+      // Remove calendarName and apply per-event time offsets before importing
+      const eventsToImport = events.map(({ calendarName, ...event }, i) => {
+        const offset = offsets?.get(i) ?? 0;
+        return {
+          ...event,
+          start_time: applyTimeOffset(event.start_time, offset),
+          end_time: applyTimeOffset(event.end_time, offset),
+        };
+      });
       await onImport(eventsToImport);
       setImportedCount(eventsToImport.length);
       setStep('success');
@@ -172,8 +183,17 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
   };
 
   const handleImportSelectedEvents = async () => {
-    const selectedEvents = parsedEvents.filter((_, i) => selectedEventIds.has(i));
-    await importFilteredEvents(selectedEvents);
+    // Build filtered events and remap offsets to new indices
+    const selectedIndices = Array.from(selectedEventIds).sort((a, b) => a - b);
+    const selectedEvents = selectedIndices.map(i => parsedEvents[i]);
+    const remappedOffsets = new Map<number, number>();
+    selectedIndices.forEach((originalIndex, newIndex) => {
+      const offset = eventOffsets.get(originalIndex);
+      if (offset !== undefined && offset !== 0) {
+        remappedOffsets.set(newIndex, offset);
+      }
+    });
+    await importFilteredEvents(selectedEvents, remappedOffsets);
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -212,9 +232,16 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
     setAvailableCalendars([]);
     setSelectedCalendars(new Set());
     setSelectedEventIds(new Set());
+    setEventOffsets(new Map());
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  // Apply time offset to an ISO string
+  const applyTimeOffset = (isoString: string, hours: number): string => {
+    if (hours === 0) return isoString;
+    return new Date(new Date(isoString).getTime() + hours * 3600000).toISOString();
   };
 
   const handleClearSyncedEvents = async () => {
@@ -418,26 +445,28 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
 
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {parsedEvents.map((event, index) => {
-                    const startTime = new Date(event.start_time).toLocaleTimeString('en-US', {
+                    const eventOffset = eventOffsets.get(index) ?? 0;
+                    const adjustedTime = applyTimeOffset(event.start_time, eventOffset);
+                    const startTime = new Date(adjustedTime).toLocaleTimeString('en-US', {
                       hour: 'numeric',
                       minute: '2-digit',
                       hour12: true
                     });
                     return (
-                      <label
+                      <div
                         key={index}
                         className={cn(
-                          "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors",
+                          "flex items-center gap-3 p-3 rounded-xl transition-colors",
                           selectedEventIds.has(index)
                             ? "bg-primary/10 border border-primary/30"
-                            : "bg-secondary/30 border border-transparent hover:bg-secondary/50 opacity-60"
+                            : "bg-secondary/30 border border-transparent opacity-60"
                         )}
                       >
                         <input
                           type="checkbox"
                           checked={selectedEventIds.has(index)}
                           onChange={() => toggleEvent(index)}
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary flex-shrink-0"
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary flex-shrink-0 cursor-pointer"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{event.title}</p>
@@ -445,7 +474,35 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
                             {startTime} {event.location && `• ${event.location}`}
                           </p>
                         </div>
-                      </label>
+                        {/* Per-event time adjustment */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {[-1, 0, 1].map(h => (
+                            <button
+                              key={h}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEventOffsets(prev => {
+                                  const next = new Map(prev);
+                                  if (h === 0) {
+                                    next.delete(index);
+                                  } else {
+                                    next.set(index, h);
+                                  }
+                                  return next;
+                                });
+                              }}
+                              className={cn(
+                                "w-7 h-6 text-[10px] font-medium rounded transition-colors",
+                                eventOffset === h
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                              )}
+                            >
+                              {h > 0 ? `+${h}` : h === 0 ? '0' : h}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
