@@ -1,7 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { X, Upload, Calendar, RefreshCw, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/task';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalBody,
+  ResponsiveModalClose,
+} from '@/components/ui/responsive-modal';
 
 interface SyncCalendarModalProps {
   isOpen: boolean;
@@ -19,53 +26,18 @@ interface ParsedEvent extends Omit<CalendarEvent, 'id' | 'created_at' | 'updated
   calendarName?: string;
 }
 
-const DRAG_THRESHOLD = 120;
-
 export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEvents, selectedDate, existingEvents }: SyncCalendarModalProps) {
   const [step, setStep] = useState<SyncStep>('instructions');
   const [importedCount, setImportedCount] = useState(0);
   const [clearedCount, setClearedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [isFileDragging, setIsFileDragging] = useState(false);
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [parsedEvents, setParsedEvents] = useState<ParsedEvent[]>([]);
   const [availableCalendars, setAvailableCalendars] = useState<string[]>([]);
   const [selectedCalendars, setSelectedCalendars] = useState<Set<string>>(new Set());
   const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
   const [eventOffsets, setEventOffsets] = useState<Map<number, number>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dragStartY = useRef(0);
-  const handleRef = useRef<HTMLDivElement>(null);
-
-  // Track pointer on window for reliable drag
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      e.preventDefault();
-      const delta = Math.max(0, e.clientY - dragStartY.current);
-      setDragY(delta);
-    };
-
-    const handlePointerUp = () => {
-      if (dragY > DRAG_THRESHOLD) {
-        onClose();
-      }
-      setDragY(0);
-      setIsDragging(false);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
-    };
-  }, [isDragging, dragY, onClose]);
 
   if (!isOpen) return null;
 
@@ -267,56 +239,24 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
     setTimeout(resetModal, 300);
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    dragStartY.current = e.clientY;
-    setIsDragging(true);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div
-        className="absolute inset-0 bg-foreground/20 backdrop-blur-sm animate-fade-in"
-        onClick={handleClose}
-      />
-
-      {/* Modal */}
-      <div
-        className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl shadow-elevated animate-slide-up max-h-[80vh] flex flex-col"
-        style={{
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-        }}
-      >
-        {/* Fixed Header Area */}
-        <div className="flex-shrink-0">
-          {/* Handle bar */}
-          <div
-            ref={handleRef}
-            className="flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing select-none hover:bg-secondary/40 transition-colors rounded-t-3xl sm:rounded-t-2xl"
-            style={{ touchAction: 'none' }}
-            onPointerDown={handlePointerDown}
-          >
-            <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40 sm:w-8 sm:h-1" />
+    <ResponsiveModal open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <ResponsiveModalContent>
+        {/* Header */}
+        <ResponsiveModalHeader className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Sync iOS Calendar</h2>
           </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">Sync iOS Calendar</h2>
-            </div>
-            <button
-              onClick={handleClose}
-              className="p-2 hover:bg-secondary rounded-xl transition-colors"
-            >
+          <ResponsiveModalClose asChild>
+            <button className="p-2 hover:bg-secondary rounded-xl transition-colors">
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
-          </div>
-        </div>
+          </ResponsiveModalClose>
+        </ResponsiveModalHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <ResponsiveModalBody>
           <div className="p-6">
             {step === 'instructions' && (
               <div className="space-y-5">
@@ -609,9 +549,9 @@ export function SyncCalendarModal({ isOpen, onClose, onImport, onClearSyncedEven
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+        </ResponsiveModalBody>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
 

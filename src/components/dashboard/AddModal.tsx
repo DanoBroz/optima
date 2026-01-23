@@ -1,10 +1,20 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Zap, Trash2, EyeOff, ChevronDown } from 'lucide-react';
 import type { Task, CalendarEvent, MotivationLevel, AvailabilityWindows } from '@/types/task';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
+import { DurationPicker } from '@/components/ui/duration-picker';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalBody,
+  ResponsiveModalClose,
+} from '@/components/ui/responsive-modal';
 
 export type AddModalTab = 'task' | 'event';
 
@@ -50,8 +60,6 @@ const drainMultipliers: Record<'restful' | 'low' | 'medium' | 'high', number> = 
   high: 1.5,
 };
 
-const DRAG_THRESHOLD = 120;
-
 export function AddModal({
   isOpen,
   onClose,
@@ -72,7 +80,7 @@ export function AddModal({
   const [taskTitle, setTaskTitle] = useState('');
   const [taskScheduledDate, setTaskScheduledDate] = useState('');
   const [taskTime, setTaskTime] = useState('');
-  const [taskDuration, setTaskDuration] = useState('30');
+  const [taskDuration, setTaskDuration] = useState(30);
   const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [taskEnergyLevel, setTaskEnergyLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [taskMotivation, setTaskMotivation] = useState<MotivationLevel>('neutral');
@@ -87,12 +95,6 @@ export function AddModal({
   const [eventEnergyLevel, setEventEnergyLevel] = useState<'restful' | 'low' | 'medium' | 'high'>('medium');
   const [eventUseCustomDrain, setEventUseCustomDrain] = useState(false);
   const [eventCustomDrain, setEventCustomDrain] = useState(60);
-
-  // Drag state
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartY = useRef(0);
-  const handleRef = useRef<HTMLDivElement>(null);
 
   // Determine edit mode
   const isTaskEditMode = !!editTask;
@@ -116,7 +118,7 @@ export function AddModal({
       setTaskTitle(editTask.title);
       setTaskScheduledDate(editTask.scheduled_date || '');
       setTaskTime(editTask.scheduled_time || '');
-      setTaskDuration(String(editTask.duration));
+      setTaskDuration(editTask.duration);
       setTaskPriority(editTask.priority);
       setTaskEnergyLevel(editTask.energy_level);
       setTaskMotivation(editTask.motivation_level);
@@ -148,7 +150,7 @@ export function AddModal({
       setTaskTitle('');
       setTaskScheduledDate('');
       setTaskTime('');
-      setTaskDuration('30');
+      setTaskDuration(30);
       setTaskPriority('medium');
       setTaskEnergyLevel('medium');
       setTaskMotivation('neutral');
@@ -164,42 +166,13 @@ export function AddModal({
     }
   }, [isOpen]);
 
-  // Track pointer for drag-to-dismiss
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      e.preventDefault();
-      const delta = Math.max(0, e.clientY - dragStartY.current);
-      setDragY(delta);
-    };
-
-    const handlePointerUp = () => {
-      if (dragY > DRAG_THRESHOLD) {
-        onClose();
-      }
-      setDragY(0);
-      setIsDragging(false);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
-    };
-  }, [isDragging, dragY, onClose]);
-
   if (!isOpen) return null;
 
   const resetTaskForm = () => {
     setTaskTitle('');
     setTaskScheduledDate('');
     setTaskTime('');
-    setTaskDuration('30');
+    setTaskDuration(30);
     setTaskPriority('medium');
     setTaskEnergyLevel('medium');
     setTaskMotivation('neutral');
@@ -225,7 +198,7 @@ export function AddModal({
       completed: editTask?.completed ?? false,
       scheduled_time: taskTime || undefined,
       scheduled_date: taskScheduledDate || undefined,
-      duration: parseInt(taskDuration, 10),
+      duration: taskDuration,
       priority: taskPriority,
       energy_level: taskEnergyLevel,
       motivation_level: taskMotivation,
@@ -293,12 +266,6 @@ export function AddModal({
     }
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    dragStartY.current = e.clientY;
-    setIsDragging(true);
-  };
-
   // Calculate event energy drain
   const [startH, startM] = eventStartTime.split(':').map(Number);
   const [endH, endM] = eventEndTime.split(':').map(Number);
@@ -327,72 +294,45 @@ export function AddModal({
   const headerTitle = getHeaderTitle();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-foreground/20 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div
-        className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl shadow-elevated animate-slide-up max-h-[80vh] flex flex-col"
-        style={{
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-        }}
-      >
-        {/* Fixed Header Area */}
-        <div className="flex-shrink-0">
-          {/* Handle bar */}
-          <div
-            ref={handleRef}
-            className="flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing select-none hover:bg-secondary/40 transition-colors rounded-t-3xl sm:rounded-t-2xl"
-            style={{ touchAction: 'none' }}
-            onPointerDown={handlePointerDown}
-          >
-            <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40 sm:w-8 sm:h-1" />
-          </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-            {headerTitle ? (
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold">{headerTitle}</h2>
-                {isExternalEvent && !isDismissedEvent && (
-                  <span className="px-2 py-0.5 text-[10px] bg-secondary rounded-full text-muted-foreground font-semibold">
-                    Synced
-                  </span>
-                )}
-                {isDismissedEvent && (
-                  <span className="px-2 py-0.5 text-[10px] bg-secondary/50 rounded-full text-muted-foreground font-semibold">
-                    Skipped
-                  </span>
-                )}
-              </div>
-            ) : (
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as AddModalTab)}>
-                <TabsList className="h-9 p-1 bg-secondary/50 rounded-xl">
-                  <TabsTrigger value="task" className="rounded-lg px-4 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                    Task
-                  </TabsTrigger>
-                  <TabsTrigger value="event" className="rounded-lg px-4 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                    Event
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-secondary rounded-xl transition-colors"
-            >
+    <ResponsiveModal open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <ResponsiveModalContent>
+        {/* Header */}
+        <ResponsiveModalHeader className="flex items-center justify-between">
+          {headerTitle ? (
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">{headerTitle}</h2>
+              {isExternalEvent && !isDismissedEvent && (
+                <span className="px-2 py-0.5 text-[10px] bg-secondary rounded-full text-muted-foreground font-semibold">
+                  Synced
+                </span>
+              )}
+              {isDismissedEvent && (
+                <span className="px-2 py-0.5 text-[10px] bg-secondary/50 rounded-full text-muted-foreground font-semibold">
+                  Skipped
+                </span>
+              )}
+            </div>
+          ) : (
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as AddModalTab)}>
+              <TabsList className="h-9 p-1 bg-secondary/50 rounded-xl">
+                <TabsTrigger value="task" className="rounded-lg px-4 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                  Task
+                </TabsTrigger>
+                <TabsTrigger value="event" className="rounded-lg px-4 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                  Event
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          <ResponsiveModalClose asChild>
+            <button className="p-2 hover:bg-secondary rounded-xl transition-colors">
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
-          </div>
-        </div>
+          </ResponsiveModalClose>
+        </ResponsiveModalHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <ResponsiveModalBody>
           {/* Task Form */}
           {activeTab === 'task' && (
             <form onSubmit={handleTaskSubmit} className="p-6 space-y-5">
@@ -412,68 +352,40 @@ export function AddModal({
               </div>
 
               {/* Date, Time & Duration row */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Date
-                    </label>
-                    {taskScheduledDate && (
-                      <button
-                        type="button"
-                        onClick={() => setTaskScheduledDate('')}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="date"
-                    value={taskScheduledDate}
-                    onChange={(e) => setTaskScheduledDate(e.target.value)}
-                    className="w-full px-3 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Time
-                    </label>
-                    {taskTime && (
-                      <button
-                        type="button"
-                        onClick={() => setTaskTime('')}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="time"
-                    value={taskTime}
-                    onChange={(e) => setTaskTime(e.target.value)}
-                    className="w-full px-3 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
+                    Date
+                  </label>
+                  <DatePicker
+                    value={taskScheduledDate || undefined}
+                    onChange={(date) => setTaskScheduledDate(date || '')}
+                    placeholder="Select date"
+                    clearable
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-2">
-                    Duration
+                    Time
                   </label>
-                  <select
-                    value={taskDuration}
-                    onChange={(e) => setTaskDuration(e.target.value)}
-                    className="w-full px-3 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
-                  >
-                    <option value="15">15 min</option>
-                    <option value="30">30 min</option>
-                    <option value="45">45 min</option>
-                    <option value="60">1 hour</option>
-                    <option value="90">1.5 hours</option>
-                    <option value="120">2 hours</option>
-                  </select>
+                  <TimePicker
+                    value={taskTime || undefined}
+                    onChange={(time) => setTaskTime(time || '')}
+                    placeholder="Select time"
+                    clearable
+                  />
                 </div>
+              </div>
+
+              {/* Duration */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Duration
+                </label>
+                <DurationPicker
+                  value={taskDuration}
+                  onChange={setTaskDuration}
+                />
               </div>
 
               {/* Mood Settings Toggle */}
@@ -655,30 +567,20 @@ export function AddModal({
                   <label className="block text-sm font-medium text-muted-foreground mb-2">
                     Start time
                   </label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={eventStartTime}
-                    onChange={(e) => setEventStartTime(e.target.value)}
+                    onChange={(time) => setEventStartTime(time || '09:00')}
                     disabled={isFieldDisabled}
-                    className={cn(
-                      "w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all",
-                      isFieldDisabled && "opacity-60 cursor-not-allowed"
-                    )}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-2">
                     End time
                   </label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={eventEndTime}
-                    onChange={(e) => setEventEndTime(e.target.value)}
+                    onChange={(time) => setEventEndTime(time || '10:00')}
                     disabled={isFieldDisabled}
-                    className={cn(
-                      "w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all",
-                      isFieldDisabled && "opacity-60 cursor-not-allowed"
-                    )}
                   />
                 </div>
               </div>
@@ -845,8 +747,8 @@ export function AddModal({
               </div>
             </form>
           )}
-        </div>
-      </div>
-    </div>
+        </ResponsiveModalBody>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

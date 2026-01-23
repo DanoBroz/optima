@@ -1,7 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { UserSettings } from '@/types/task';
 import { getSettings, saveSettings } from '@/utils/settings';
+import { TimePicker } from '@/components/ui/time-picker';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalBody,
+  ResponsiveModalClose,
+} from '@/components/ui/responsive-modal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -17,50 +25,14 @@ const PRESET_LABELS = {
 const HOUR_OPTIONS = Array.from({ length: 13 }, (_, i) => i); // 0-12
 const MINUTE_OPTIONS = [0, 15, 30, 45];
 
-const DRAG_THRESHOLD = 120;
-
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState<UserSettings>(getSettings);
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartY = useRef(0);
-  const handleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setSettings(getSettings());
-      setDragY(0);
     }
   }, [isOpen]);
-
-  // Track pointer on window for reliable drag
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      e.preventDefault();
-      const delta = Math.max(0, e.clientY - dragStartY.current);
-      setDragY(delta);
-    };
-
-    const handlePointerUp = () => {
-      if (dragY > DRAG_THRESHOLD) {
-        onClose();
-      }
-      setDragY(0);
-      setIsDragging(false);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
-    };
-  }, [isDragging, dragY, onClose]);
 
   if (!isOpen) return null;
 
@@ -96,54 +68,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }));
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    dragStartY.current = e.clientY;
-    setIsDragging(true);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-foreground/20 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div
-        className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl shadow-elevated animate-slide-up max-h-[80vh] flex flex-col"
-        style={{
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-        }}
-      >
-        {/* Fixed Header Area */}
-        <div className="flex-shrink-0">
-          {/* Handle bar */}
-          <div
-            ref={handleRef}
-            className="flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing select-none hover:bg-secondary/40 transition-colors rounded-t-3xl sm:rounded-t-2xl"
-            style={{ touchAction: 'none' }}
-            onPointerDown={handlePointerDown}
-          >
-            <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40 sm:w-8 sm:h-1" />
-          </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-            <h2 className="text-lg font-semibold">Settings</h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-secondary rounded-xl transition-colors"
-            >
+    <ResponsiveModal open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <ResponsiveModalContent>
+        {/* Header */}
+        <ResponsiveModalHeader className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Settings</h2>
+          <ResponsiveModalClose asChild>
+            <button className="p-2 hover:bg-secondary rounded-xl transition-colors">
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
-          </div>
-        </div>
+          </ResponsiveModalClose>
+        </ResponsiveModalHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <ResponsiveModalBody>
           <div className="p-6 space-y-6">
             {/* Work Hours */}
             <div>
@@ -153,26 +92,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                     Start
                   </label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={settings.work_start_time}
-                    onChange={(e) =>
-                      setSettings(prev => ({ ...prev, work_start_time: e.target.value }))
+                    onChange={(time) =>
+                      setSettings(prev => ({ ...prev, work_start_time: time || '09:00' }))
                     }
-                    className="w-full px-3 py-2.5 bg-secondary rounded-xl border-0 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                     End
                   </label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={settings.work_end_time}
-                    onChange={(e) =>
-                      setSettings(prev => ({ ...prev, work_end_time: e.target.value }))
+                    onChange={(time) =>
+                      setSettings(prev => ({ ...prev, work_end_time: time || '17:00' }))
                     }
-                    className="w-full px-3 py-2.5 bg-secondary rounded-xl border-0 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
               </div>
@@ -193,19 +128,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <span className="w-20 text-sm font-medium text-muted-foreground capitalize">
                         {PRESET_LABELS[preset]}
                       </span>
-                      <input
-                        type="time"
-                        value={settings.availability_presets[preset].start}
-                        onChange={(e) => updatePreset(preset, 'start', e.target.value)}
-                        className="flex-1 px-3 py-2 bg-secondary rounded-xl border-0 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                      />
+                      <div className="flex-1">
+                        <TimePicker
+                          value={settings.availability_presets[preset].start}
+                          onChange={(time) => updatePreset(preset, 'start', time || '09:00')}
+                        />
+                      </div>
                       <span className="text-muted-foreground text-sm">–</span>
-                      <input
-                        type="time"
-                        value={settings.availability_presets[preset].end}
-                        onChange={(e) => updatePreset(preset, 'end', e.target.value)}
-                        className="flex-1 px-3 py-2 bg-secondary rounded-xl border-0 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                      />
+                      <div className="flex-1">
+                        <TimePicker
+                          value={settings.availability_presets[preset].end}
+                          onChange={(time) => updatePreset(preset, 'end', time || '17:00')}
+                        />
+                      </div>
                     </div>
                   )
                 )}
@@ -258,8 +193,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               Save Settings
             </button>
           </div>
-        </div>
-      </div>
-    </div>
+        </ResponsiveModalBody>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
