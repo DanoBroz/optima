@@ -352,9 +352,9 @@ export const autoScheduleSelectedTasks = (
 };
 
 /**
- * Auto-schedule all unlocked tasks (for header "Optimize" button)
- * Re-optimizes unlocked scheduled tasks AND schedules backlog tasks
- * Only locked tasks keep their time slots - everything else is rescheduled
+ * Auto-schedule all unlocked tasks on today's timeline (for header "Reschedule" button)
+ * Only reschedules tasks already on the timeline - does not pull from backlog
+ * Locked tasks keep their time slots, unlocked tasks get rescheduled to optimal slots
  */
 export const autoScheduleAllUnlocked = (
   allTasks: Task[],
@@ -364,14 +364,13 @@ export const autoScheduleAllUnlocked = (
   dailyEnergy: DailyEnergyLevel,
   targetDate: string
 ): Task[] => {
-  // Collect all tasks that should be (re)scheduled:
-  // 1. Unlocked tasks scheduled for today (will be rescheduled)
-  // 2. Unscheduled backlog tasks (will be scheduled)
-  // Skip: locked tasks, completed tasks
-  const tasksToSchedule = allTasks.filter(task => 
-    !task.is_locked && 
-    !task.completed && 
-    (!task.scheduled_time || task.scheduled_date === targetDate)
+  // Only reschedule unlocked tasks already on today's timeline
+  // Must have both scheduled_date === today AND scheduled_time set
+  const tasksToSchedule = allTasks.filter(task =>
+    !task.is_locked &&
+    !task.completed &&
+    task.scheduled_date === targetDate &&
+    task.scheduled_time  // Must be on timeline (has a time)
   );
 
   if (tasksToSchedule.length === 0) return [];

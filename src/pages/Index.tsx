@@ -373,15 +373,17 @@ const Index = () => {
   };
 
   const handleHeaderOptimize = async (): Promise<{ scheduled: Task[]; unscheduled: Task[] }> => {
-    // Get all unlocked, incomplete tasks that could be (re)scheduled
+    // Only reschedule unlocked tasks already on today's timeline
+    // Does NOT pull from backlog - for that use "Optimize All" in backlog panel
     const tasksToOptimize = tasks.filter(task =>
       !task.is_locked &&
       !task.completed &&
-      (!task.scheduled_time || task.scheduled_date === dateStr)
+      task.scheduled_date === dateStr &&
+      task.scheduled_time  // Must have a time (already on timeline)
     );
 
     if (tasksToOptimize.length === 0) {
-      toast.info('No tasks to optimize');
+      toast.info('No unlocked tasks on timeline to reschedule');
       return { scheduled: [], unscheduled: [] };
     }
 

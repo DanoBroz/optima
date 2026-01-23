@@ -114,7 +114,7 @@ export function Header({
               className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-2xl font-semibold text-sm transition-all disabled:opacity-50"
             >
               <Sparkles className={`w-4 h-4 ${isScheduling ? 'animate-spin' : ''}`} />
-              <span>{isScheduling ? 'Optimizing...' : 'Optimize'}</span>
+              <span>{isScheduling ? 'Rescheduling...' : 'Reschedule Timeline'}</span>
             </button>
             
             {/* Add task button (desktop only) */}
