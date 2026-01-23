@@ -2,6 +2,15 @@ import { Calendar, Check, Clock, Trash2, ArrowRight, Lock, Unlock, GripVertical,
 import type { Task } from '@/types/task';
 import type { TaskChangeType } from '@/hooks/useDraft';
 import { cn } from '@/lib/utils';
+import { format, isToday, isTomorrow, parseISO } from 'date-fns';
+
+function formatScheduledDate(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  const date = parseISO(dateStr);
+  if (isToday(date)) return 'Today';
+  if (isTomorrow(date)) return 'Tomorrow';
+  return format(date, 'MMM d');
+}
 
 interface TaskCardProps {
   task: Task;
@@ -130,6 +139,16 @@ export function TaskCard({
               <span className="text-xs text-muted-foreground font-medium">
                 {task.duration}m
               </span>
+            )}
+
+            {/* Scheduled date badge - show for backlog items with a target date */}
+            {!task.scheduled_time && task.scheduled_date && (
+              <div className="flex items-center gap-1 text-primary">
+                <Calendar className="w-3 h-3" />
+                <span className="text-xs font-medium">
+                  {formatScheduledDate(task.scheduled_date)}
+                </span>
+              </div>
             )}
             
             {/* Energy badge */}

@@ -25,6 +25,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalP
   const isEditMode = !!editTask;
 
   const [title, setTitle] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
   const [time, setTime] = useState('');
   const [duration, setDuration] = useState('30');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
@@ -40,6 +41,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalP
   useEffect(() => {
     if (editTask) {
       setTitle(editTask.title);
+      setScheduledDate(editTask.scheduled_date || '');
       setTime(editTask.scheduled_time || '');
       setDuration(String(editTask.duration));
       setPriority(editTask.priority);
@@ -49,6 +51,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalP
     } else {
       // Reset form for add mode
       setTitle('');
+      setScheduledDate('');
       setTime('');
       setDuration('30');
       setPriority('medium');
@@ -97,7 +100,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalP
       title: title.trim(),
       completed: editTask?.completed ?? false,
       scheduled_time: time || undefined,
-      scheduled_date: time ? (editTask?.scheduled_date || new Date().toISOString().split('T')[0]) : undefined,
+      scheduled_date: scheduledDate || undefined,
       duration: parseInt(duration, 10),
       priority,
       energy_level: energyLevel,
@@ -174,17 +177,28 @@ export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalP
               />
             </div>
 
-            {/* Time & Duration row */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Date, Time & Duration row */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Time (optional)
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="w-full px-3 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Time
                 </label>
                 <input
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className="w-full px-3 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>
               <div>
@@ -194,7 +208,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd, editTask }: AddTaskModalP
                 <select
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
-                  className="w-full px-4 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
+                  className="w-full px-3 py-3 bg-secondary rounded-xl border-0 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
                 >
                   <option value="15">15 min</option>
                   <option value="30">30 min</option>

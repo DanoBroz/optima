@@ -61,6 +61,12 @@ interface DashboardPanelsProps {
   activeTab: TabType;
   scheduledTasks: Task[];
   unscheduledTasks: Task[];
+  /** Tasks scheduled for today with no time (backlog section) */
+  todayBacklogTasks: Task[];
+  /** Tasks with no date (true backlog) */
+  trueUnscheduledTasks: Task[];
+  /** Tasks with future dates (scheduled for later) */
+  deferredTasks: Task[];
   tasks: Task[];
   events: CalendarEvent[];
   dailyEnergy: DailyEnergy | null;
@@ -110,6 +116,9 @@ export function DashboardPanels({
   activeTab,
   scheduledTasks,
   unscheduledTasks,
+  todayBacklogTasks,
+  trueUnscheduledTasks,
+  deferredTasks,
   tasks,
   events,
   dailyEnergy,
@@ -175,6 +184,9 @@ export function DashboardPanels({
           <TabsContent value="backlog" className="flex flex-col gap-5 mt-0 animate-fade-in">
             <TaskList
               tasks={unscheduledTasks}
+              todayTasks={todayBacklogTasks}
+              unscheduledTasks={trueUnscheduledTasks}
+              deferredTasks={deferredTasks}
               onToggleTask={taskActions.toggle}
               onDeleteTask={taskActions.remove}
               onEditTask={taskActions.edit}
@@ -245,7 +257,9 @@ export function DashboardPanels({
           {activeTab === 'backlog' && (
             <div className="flex-1 space-y-4 animate-fade-in overflow-y-auto pb-24">
               <MobileBacklogList
-                tasks={unscheduledTasks}
+                todayTasks={todayBacklogTasks}
+                unscheduledTasks={trueUnscheduledTasks}
+                deferredTasks={deferredTasks}
                 onToggleTask={taskActions.toggle}
                 onDeleteTask={taskActions.remove}
                 onDeferTask={taskActions.defer}

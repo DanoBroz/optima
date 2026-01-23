@@ -1,10 +1,18 @@
+import { useState } from 'react';
 import type { Task } from '@/types/task';
 import { TaskCard } from './TaskCard';
-import { Inbox, Sparkles, AlertTriangle, Calendar, Clock } from 'lucide-react';
+import { Inbox, Sparkles, AlertTriangle, Calendar, Clock, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TaskListProps {
+  /** All unscheduled tasks (legacy prop - used when sections not provided) */
   tasks: Task[];
+  /** Tasks scheduled for today with no time */
+  todayTasks?: Task[];
+  /** Tasks with no date (true backlog) */
+  unscheduledTasks?: Task[];
+  /** Tasks with future dates (scheduled for later) */
+  deferredTasks?: Task[];
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onEditTask?: (id: string) => void;
@@ -22,6 +30,9 @@ interface TaskListProps {
 
 export function TaskList({
   tasks,
+  todayTasks = [],
+  unscheduledTasks = [],
+  deferredTasks = [],
   onToggleTask,
   onDeleteTask,
   onEditTask,
@@ -33,7 +44,13 @@ export function TaskList({
   onScheduleUnscheduled,
   onScheduleTomorrow,
 }: TaskListProps) {
-  const uncompletedTasks = tasks.filter(t => !t.completed);
+  const [deferredExpanded, setDeferredExpanded] = useState(false);
+
+  // Use sectioned view if section props provided, otherwise use legacy tasks prop
+  const useSections = todayTasks.length > 0 || unscheduledTasks.length > 0 || deferredTasks.length > 0;
+  const allTasks = useSections ? [...todayTasks, ...unscheduledTasks, ...deferredTasks] : tasks;
+  const uncompletedTasks = allTasks.filter(t => !t.completed);
+  const totalCount = allTasks.length;
 
   return (
     <div className="bg-card rounded-3xl shadow-card border border-border/30 overflow-hidden">
@@ -123,7 +140,7 @@ export function TaskList({
           </div>
         )}
 
-        {tasks.length === 0 && draftUnscheduledTasks.length === 0 ? (
+        {totalCount === 0 && draftUnscheduledTasks.length === 0 ? (
           <div className="py-10 text-center">
             <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-secondary/50 flex items-center justify-center">
               <Inbox className="w-6 h-6 text-muted-foreground/50" />
@@ -131,6 +148,117 @@ export function TaskList({
             <p className="text-muted-foreground text-sm font-medium">No tasks yet</p>
             <p className="text-muted-foreground/70 text-xs mt-1">Add a task to get started</p>
           </div>
+        ) : useSections ? (
+          <>
+            {/* Today's tasks section - highest priority */}
+            {todayTasks.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <Clock className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-semibold text-primary">Today</span>
+                  <span className="text-xs text-muted-foreground">({todayTasks.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {todayTasks.map((task, index) => (
+                    <div
+                      key={task.id}
+                      className="animate-slide-up"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData('taskId', task.id)}
+                    >
+                      <TaskCard
+                        task={task}
+                        onToggle={onToggleTask}
+                        onDelete={onDeleteTask}
+                        onScheduleToToday={onScheduleToToday}
+                        onEdit={onEditTask}
+                        draggable
+                        showCompletionToggle={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Unscheduled section */}
+            {unscheduledTasks.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <Inbox className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground">Unscheduled</span>
+                  <span className="text-xs text-muted-foreground/70">({unscheduledTasks.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {unscheduledTasks.map((task, index) => (
+                    <div
+                      key={task.id}
+                      className="animate-slide-up"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData('taskId', task.id)}
+                    >
+                      <TaskCard
+                        task={task}
+                        onToggle={onToggleTask}
+                        onDelete={onDeleteTask}
+                        onScheduleToToday={onScheduleToToday}
+                        onEdit={onEditTask}
+                        draggable
+                        showCompletionToggle={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Scheduled for later section - collapsed by default */}
+            {deferredTasks.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setDeferredExpanded(!deferredExpanded)}
+                  className="flex items-center gap-2 mb-2 px-1 w-full text-left group"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground/70" />
+                  <span className="text-xs font-semibold text-muted-foreground/70 group-hover:text-muted-foreground">
+                    Scheduled for later
+                  </span>
+                  <span className="text-xs text-muted-foreground/50">({deferredTasks.length})</span>
+                  <ChevronDown
+                    className={cn(
+                      "w-3.5 h-3.5 text-muted-foreground/50 ml-auto transition-transform",
+                      deferredExpanded && "rotate-180"
+                    )}
+                  />
+                </button>
+                {deferredExpanded && (
+                  <div className="space-y-2">
+                    {deferredTasks.map((task, index) => (
+                      <div
+                        key={task.id}
+                        className="animate-slide-up"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('taskId', task.id)}
+                      >
+                        <TaskCard
+                          task={task}
+                          onToggle={onToggleTask}
+                          onDelete={onDeleteTask}
+                          onScheduleToToday={onScheduleToToday}
+                          onEdit={onEditTask}
+                          draggable
+                          showCompletionToggle={false}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         ) : (
           tasks.map((task, index) => (
             <div

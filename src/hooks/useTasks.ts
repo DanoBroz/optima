@@ -30,8 +30,11 @@ export function useTasks(selectedDate: Date = new Date()) {
     setLoading(true);
     try {
       const allTasks = await taskRepository.getAll();
-      const filteredTasks = allTasks.filter(
-        task => task.scheduled_date === dateStr || task.scheduled_date === null
+      // Include: today's tasks, true backlog (no date), and future-dated backlog items
+      const filteredTasks = allTasks.filter(task =>
+        task.scheduled_date === dateStr ||
+        !task.scheduled_date ||
+        (task.scheduled_date && task.scheduled_date > dateStr && !task.scheduled_time)
       );
       setTasks(filteredTasks);
     } catch (error) {
@@ -745,12 +748,39 @@ export function useTasks(selectedDate: Date = new Date()) {
   );
 
   const scheduledTasks = useMemo(() => tasks.filter(task => task.scheduled_time), [tasks]);
+
+  // Backlog section: all tasks without a scheduled time
   const unscheduledTasks = useMemo(() => tasks.filter(task => !task.scheduled_time), [tasks]);
+
+  // Today's backlog - scheduled for today but no time (highest priority in backlog)
+  const todayBacklogTasks = useMemo(() =>
+    tasks.filter(task => !task.scheduled_time && task.scheduled_date === dateStr),
+    [tasks, dateStr]
+  );
+
+  // True backlog - no date, no time
+  const trueUnscheduledTasks = useMemo(() =>
+    tasks.filter(task => !task.scheduled_time && !task.scheduled_date),
+    [tasks]
+  );
+
+  // Scheduled for later - future date, no time (collapsed section)
+  const deferredTasks = useMemo(() =>
+    tasks.filter(task =>
+      !task.scheduled_time &&
+      task.scheduled_date &&
+      task.scheduled_date > dateStr
+    ),
+    [tasks, dateStr]
+  );
 
   return {
     tasks,
     scheduledTasks,
     unscheduledTasks,
+    todayBacklogTasks,
+    trueUnscheduledTasks,
+    deferredTasks,
     events,
     dailyEnergy,
     dayIntention,

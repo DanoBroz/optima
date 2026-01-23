@@ -53,6 +53,9 @@ const Index = () => {
     tasks,
     scheduledTasks,
     unscheduledTasks,
+    todayBacklogTasks,
+    trueUnscheduledTasks,
+    deferredTasks,
     events,
     dailyEnergy,
     dayIntention,
@@ -422,6 +425,9 @@ const Index = () => {
         activeTab={activeTab}
         scheduledTasks={draft.isActive && draft.draftState ? draft.draftState.proposedTasks : scheduledTasks}
         unscheduledTasks={unscheduledTasks}
+        todayBacklogTasks={todayBacklogTasks}
+        trueUnscheduledTasks={trueUnscheduledTasks}
+        deferredTasks={deferredTasks}
         tasks={tasks}
         events={events}
         dailyEnergy={dailyEnergy}
