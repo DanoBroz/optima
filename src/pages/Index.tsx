@@ -445,7 +445,6 @@ const Index = () => {
         isScheduling={isScheduling || draft.isProcessing}
         onEventClick={handleEventClick}
         onRestoreEvent={handleRestoreEvent}
-        onOpenEventModal={() => openAddModal('event')}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
         taskActions={{
           ...taskActions,

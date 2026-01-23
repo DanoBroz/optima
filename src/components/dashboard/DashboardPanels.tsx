@@ -8,7 +8,7 @@ import { StatsBar } from '@/components/dashboard/StatsBar';
 import { TimelineView } from '@/components/dashboard/TimelineView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { ChangesSummary } from '@/hooks/useDraft';
-import { CalendarPlus, RefreshCw, Calendar, Inbox } from 'lucide-react';
+import { RefreshCw, Calendar, Inbox } from 'lucide-react';
 
 type TabType = 'timeline' | 'today' | 'backlog';
 
@@ -75,7 +75,6 @@ interface DashboardPanelsProps {
   isScheduling: boolean;
   onEventClick: (event: CalendarEvent) => void;
   onRestoreEvent: (id: string) => void;
-  onOpenEventModal: () => void;
   onOpenSyncModal: () => void;
   taskActions: TaskActions;
   energyActions: EnergyActions;
@@ -84,29 +83,20 @@ interface DashboardPanelsProps {
   draftMode?: DraftModeProps;
 }
 
-function CalendarActions({ 
-  onOpenEventModal, 
-  onOpenSyncModal 
-}: { 
-  onOpenEventModal: () => void; 
+function SyncCalendarButton({
+  onOpenSyncModal
+}: {
   onOpenSyncModal: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-1 py-2">
-      <button
-        onClick={onOpenEventModal}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-secondary font-medium"
-      >
-        <CalendarPlus className="w-4 h-4" />
-        <span>Add event</span>
-      </button>
+    <div className="px-1 py-2">
       <button
         onClick={onOpenSyncModal}
-        className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors py-2 px-3 rounded-xl hover:bg-primary/10 font-semibold"
+        className="flex items-center justify-center gap-2 w-full text-sm bg-primary/10 text-primary hover:bg-primary/20 transition-colors py-3 px-4 rounded-xl font-semibold border border-primary/20"
         title="Sync iOS Calendar"
       >
         <RefreshCw className="w-4 h-4" />
-        <span>Sync</span>
+        <span>Sync Calendar</span>
       </button>
     </div>
   );
@@ -127,7 +117,6 @@ export function DashboardPanels({
   isScheduling,
   onEventClick,
   onRestoreEvent,
-  onOpenEventModal,
   onOpenSyncModal,
   taskActions,
   energyActions,
@@ -197,10 +186,7 @@ export function DashboardPanels({
               onScheduleUnscheduled={draftMode?.onScheduleUnscheduled}
               onScheduleTomorrow={draftMode?.onScheduleTomorrow}
             />
-            <CalendarActions
-              onOpenEventModal={onOpenEventModal}
-              onOpenSyncModal={onOpenSyncModal}
-            />
+            <SyncCalendarButton onOpenSyncModal={onOpenSyncModal} />
           </TabsContent>
         </Tabs>
       </aside>
@@ -269,10 +255,7 @@ export function DashboardPanels({
                 onOptimizeAll={taskActions.autoScheduleBacklog}
                 isScheduling={isScheduling}
               />
-              <CalendarActions
-                onOpenEventModal={onOpenEventModal}
-                onOpenSyncModal={onOpenSyncModal}
-              />
+              <SyncCalendarButton onOpenSyncModal={onOpenSyncModal} />
             </div>
           )}
         </div>

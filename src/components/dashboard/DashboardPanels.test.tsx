@@ -61,7 +61,6 @@ describe('DashboardPanels', () => {
         isScheduling={false}
         onEventClick={vi.fn()}
         onRestoreEvent={vi.fn()}
-        onOpenEventModal={vi.fn()}
         onOpenSyncModal={vi.fn()}
         taskActions={{
           toggle: vi.fn(),
