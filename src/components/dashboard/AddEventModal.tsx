@@ -129,8 +129,10 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, onDi
 
     if (isEditMode && editEvent && onUpdate) {
       if (isExternalEvent) {
-        // External events: only update energy settings
+        // External events: update energy settings and times (for time correction)
         onUpdate(editEvent.id, {
+          start_time: `${dateStr}T${startTime}:00Z`,
+          end_time: `${dateStr}T${endTime}:00Z`,
           energy_level: energyLevel,
           energy_drain: useCustomDrain ? customDrain : undefined
         });
@@ -300,6 +302,33 @@ export function AddEventModal({ isOpen, onClose, onAdd, onUpdate, onDelete, onDi
                 />
               </div>
             </div>
+
+            {/* Time adjustment for synced events with wrong times */}
+            {isExternalEvent && !isDismissedEvent && (
+              <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
+                <span className="text-sm text-muted-foreground">Adjust time:</span>
+                <div className="flex items-center gap-2">
+                  {[-1, 1].map(h => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => {
+                        // Parse current times and adjust by h hours
+                        const [sH, sM] = startTime.split(':').map(Number);
+                        const [eH, eM] = endTime.split(':').map(Number);
+                        const newStartH = Math.max(0, Math.min(23, sH + h));
+                        const newEndH = Math.max(0, Math.min(23, eH + h));
+                        setStartTime(`${String(newStartH).padStart(2, '0')}:${String(sM).padStart(2, '0')}`);
+                        setEndTime(`${String(newEndH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
+                    >
+                      {h > 0 ? `+${h}h` : `${h}h`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
