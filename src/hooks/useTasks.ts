@@ -245,11 +245,11 @@ export function useTasks(selectedDate: Date = new Date()) {
 
     // Get all unlocked, incomplete tasks that could be (re)scheduled:
     // - Unlocked tasks scheduled for today (will be rescheduled to optimal slots)
-    // - Unscheduled backlog tasks (will be scheduled)
+    // - Unscheduled backlog tasks for today or with no date (excludes future-dated tasks)
     const tasksToOptimize = tasks.filter(task =>
       !task.is_locked &&
       !task.completed &&
-      (!task.scheduled_time || task.scheduled_date === dateStr)
+      (task.scheduled_date === dateStr || (!task.scheduled_time && !task.scheduled_date))
     );
 
     if (tasksToOptimize.length === 0) {
@@ -351,8 +351,12 @@ export function useTasks(selectedDate: Date = new Date()) {
       return { scheduled: [], unscheduled: [] };
     }
 
+    // Only include backlog tasks for today or with no date (exclude future-dated tasks)
     const backlogTasks = tasks.filter(
-      task => !task.scheduled_time && !task.completed && !task.is_locked
+      task => !task.scheduled_time &&
+              !task.completed &&
+              !task.is_locked &&
+              (!task.scheduled_date || task.scheduled_date === dateStr)
     );
 
     if (backlogTasks.length === 0) {
