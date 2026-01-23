@@ -4,12 +4,20 @@ import type { TaskChange, ChangesSummary } from '@/hooks/useDraft';
 import { TaskCard } from './TaskCard';
 import { SwipeableTaskCard } from './SwipeableTaskCard';
 import { TaskActionDrawer } from './TaskActionDrawer';
-import { EventCard } from './EventCard';
 import { GhostTaskCard } from './GhostTaskCard';
 import { DraftBar } from './DraftBar';
+import { PositionedTaskCard } from './PositionedTaskCard';
+import { PositionedEventCard } from './PositionedEventCard';
 import { cn } from '@/lib/utils';
 import { format, parse } from 'date-fns';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import {
+  calculateTimelineLayout,
+  PIXELS_PER_MINUTE,
+  HOUR_ROW_HEIGHT,
+  MIN_CARD_HEIGHT,
+  pixelsToTime,
+} from '@/utils/timelineLayout';
 
 interface GhostTask {
   task: Task;
@@ -52,6 +60,11 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const WORK_HOURS_START = 6;
 const WORK_HOURS_END = 22;
 
+// Layout configuration for the two-lane timeline
+const HOUR_LABEL_WIDTH = 48; // px
+const LANE_GAP = 8; // px between event and task lanes
+const TOTAL_HEIGHT = 24 * HOUR_ROW_HEIGHT; // Full 24 hours using compact row height
+
 function formatHour(hour: number): string {
   return `${hour.toString().padStart(2, '0')}:00`;
 }
@@ -87,7 +100,6 @@ export function TimelineView({
   draftBarProps,
 }: TimelineViewProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [dragOverHour, setDragOverHour] = useState<number | null>(null);
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -101,17 +113,33 @@ export function TimelineView({
   const currentHour = currentTime.getHours();
   const currentMinute = currentTime.getMinutes();
 
-  // Track indicator position based on actual DOM measurements
-  // This accounts for variable row heights when tasks/events expand rows
-  const [indicatorTop, setIndicatorTop] = useState<number | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-
-  // Fallback calculation for initial render (before DOM is ready)
-  // Uses fixed 56px height assumption - close enough until real measurement kicks in
-  const fallbackPosition = useMemo(() => {
-    const hourHeight = 56;
-    return currentHour * hourHeight + (currentMinute / 60) * hourHeight;
+  // Calculate current time indicator position (now simple math since we use fixed pixels per minute)
+  const currentTimeTop = useMemo(() => {
+    const minutesFromMidnight = currentHour * 60 + currentMinute;
+    return minutesFromMidnight * PIXELS_PER_MINUTE;
   }, [currentHour, currentMinute]);
+
+  // Calculate layout for tasks and events with overlap detection
+  const todayLayout = useMemo(() => {
+    return calculateTimelineLayout(tasks, events);
+  }, [tasks, events]);
+
+  // Dynamic lane proportions based on content presence
+  const hasEvents = todayLayout.events.length > 0;
+  const hasTasks = todayLayout.tasks.length > 0;
+
+  // Create lookup maps for quick access to items by ID
+  const tasksMap = useMemo(() => {
+    return new Map(tasks.map(t => [t.id, t]));
+  }, [tasks]);
+
+  const eventsMap = useMemo(() => {
+    return new Map(events.map(e => [e.id, e]));
+  }, [events]);
+
+  // State for drag-and-drop visual feedback
+  const [dropIndicatorY, setDropIndicatorY] = useState<number | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Update current time every minute
   useEffect(() => {
@@ -121,67 +149,15 @@ export function TimelineView({
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate indicator position from actual DOM measurements
-  const updateIndicatorPosition = useCallback(() => {
-    // Find the VISIBLE hour row - important because both desktop and mobile containers
-    // render the timeline, but only one is visible. Query for the one with actual dimensions.
-    const allRows = document.querySelectorAll(`[data-hour-row="${currentHour}"]`);
-    const visibleRow = Array.from(allRows).find(
-      (el) => el instanceof HTMLElement && el.offsetHeight > 0
-    ) as HTMLElement | undefined;
-
-    // Only use DOM measurement if we found a visible element
-    if (visibleRow) {
-      const rowTop = visibleRow.offsetTop;
-      const rowHeight = visibleRow.offsetHeight;
-      const minuteOffset = (currentMinute / 60) * rowHeight;
-      setIndicatorTop(rowTop + minuteOffset);
-    } else {
-      // Fall back to calculated position until DOM is ready
-      setIndicatorTop(fallbackPosition);
-    }
-  }, [currentHour, currentMinute, fallbackPosition]);
-
-  // Effect to set up observation after component mounts
+  // Scroll to current time indicator on mount
   useEffect(() => {
-    // Use double requestAnimationFrame to ensure layout is complete
-    const frame = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateIndicatorPosition();
-
-        // Clean up previous observer if it exists
-        resizeObserverRef.current?.disconnect();
-
-        // Set up ResizeObserver to update when row heights change
-        // Observe all visible hour rows (ones with the data attribute that have dimensions)
-        const resizeObserver = new ResizeObserver(updateIndicatorPosition);
-        const allRows = document.querySelectorAll('[data-hour-row]');
-        allRows.forEach(row => {
-          if (row instanceof HTMLElement && row.offsetHeight > 0) {
-            resizeObserver.observe(row);
-          }
-        });
-
-        resizeObserverRef.current = resizeObserver;
-      });
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-      resizeObserverRef.current?.disconnect();
-    };
-  }, [currentHour, currentMinute, tasks, events, updateIndicatorPosition]);
-
-  // Scroll to current time indicator on mount and when position is calculated
-  useEffect(() => {
-    const position = indicatorTop ?? fallbackPosition;
-    if (nowIndicatorRef.current && todayScrollRef.current && position > 0) {
+    if (nowIndicatorRef.current && todayScrollRef.current && currentTimeTop > 0) {
       nowIndicatorRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
       });
     }
-  }, [indicatorTop, fallbackPosition]);
+  }, [currentTimeTop]);
 
   // Synchronized scrolling handlers
   const handleTodayScroll = useCallback(() => {
@@ -212,6 +188,7 @@ export function TimelineView({
     return Array.from(hours).sort((a, b) => a - b);
   }, [tomorrowTasks]);
 
+  // Helper for tomorrow timeline (still uses hour-based grouping)
   const getTasksForHour = useCallback((hour: number, taskList: Task[] = tasks) => {
     return taskList.filter((task) => {
       if (!task.scheduled_time) return false;
@@ -220,134 +197,65 @@ export function TimelineView({
     });
   }, [tasks]);
 
-  const getGhostsForHour = useCallback((hour: number) => {
-    if (!draftMode) return [];
-    return ghostTasks.filter((ghost) => {
-      const ghostHour = parseInt(ghost.originalTime.split(':')[0], 10);
-      return ghostHour === hour;
-    });
-  }, [draftMode, ghostTasks]);
-
-  const getEventsForHour = useCallback((hour: number) => {
-    return events.filter((event) => {
-      const eventHour = new Date(event.start_time).getHours();
-      return eventHour === hour;
-    });
-  }, [events]);
-
-  const handleDragOver = (e: React.DragEvent, hour: number) => {
+  // Drag-and-drop handlers for the positioned timeline
+  const handleTimelineDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setDragOverHour(hour);
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const y = e.clientY - rect.top + (todayScrollRef.current?.scrollTop ?? 0);
+    // Snap to 15-minute intervals for visual feedback
+    const minutes = Math.round(y / PIXELS_PER_MINUTE / 15) * 15;
+    setDropIndicatorY(minutes * PIXELS_PER_MINUTE);
   };
 
-  const handleDragLeave = () => {
-    setDragOverHour(null);
+  const handleTimelineDragLeave = () => {
+    setDropIndicatorY(null);
   };
 
-  const handleDrop = (e: React.DragEvent, hour: number) => {
+  const handleTimelineDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('taskId');
-    if (taskId) {
-      const time = `${String(hour).padStart(2, '0')}:00`;
-      onRescheduleTask(taskId, time);
+    if (!taskId) {
+      setDropIndicatorY(null);
+      return;
     }
-    setDragOverHour(null);
+
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect) {
+      setDropIndicatorY(null);
+      return;
+    }
+
+    const y = e.clientY - rect.top + (todayScrollRef.current?.scrollTop ?? 0);
+    const time = pixelsToTime(y, true, 15); // Snap to 15-minute intervals
+    onRescheduleTask(taskId, time);
+    setDropIndicatorY(null);
   };
 
-  // Render a single hour row for the timeline
-  const renderHourRow = (
-    hour: number,
-    hourTasks: Task[],
-    hourEvents: CalendarEvent[],
-    hourGhosts: GhostTask[],
-    options: {
-      isTomorrow?: boolean;
-    } = {}
-  ) => {
-    const { isTomorrow = false } = options;
-    const isWorkHour = hour >= WORK_HOURS_START && hour < WORK_HOURS_END;
-    const isPast = !isTomorrow && hour < currentHour;
-    const isCurrent = !isTomorrow && hour === currentHour;
-    const isDragOver = dragOverHour === hour;
+  const handleTaskDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData('taskId', taskId);
+  };
 
+  // Render a single hour row for the tomorrow timeline (simplified, no drag-drop)
+  const renderTomorrowHourRow = (hour: number, hourTasks: Task[]) => {
     return (
       <div
         key={hour}
-        data-hour-row={!isTomorrow ? hour : undefined}
-        className={cn(
-          "relative flex min-h-[56px] border-b transition-colors",
-          isTomorrow
-            ? "border-[hsl(var(--tomorrow-foreground)/0.1)]"
-            : "border-border/30",
-          !isWorkHour && !isTomorrow && "bg-secondary/20",
-          isPast && "opacity-65",
-          isDragOver && "bg-primary/10"
-        )}
-        onDragOver={(e) => handleDragOver(e, hour)}
-        onDragLeave={handleDragLeave}
-        onDrop={(e) => handleDrop(e, hour)}
+        className="relative flex min-h-[56px] border-b border-[hsl(var(--tomorrow-foreground)/0.1)]"
       >
         {/* Hour label */}
         <div className="w-12 flex-shrink-0 py-2 px-2">
-          <span
-            className={cn(
-              "text-[11px] font-medium tabular-nums",
-              isTomorrow
-                ? "text-[hsl(var(--tomorrow-foreground)/0.7)]"
-                : isCurrent 
-                  ? "text-primary" 
-                  : "text-muted-foreground"
-            )}
-          >
+          <span className="text-[11px] font-medium tabular-nums text-[hsl(var(--tomorrow-foreground)/0.7)]">
             {formatHour(hour)}
           </span>
         </div>
 
         {/* Timeline line */}
-        <div className={cn(
-          "absolute left-12 top-0 bottom-0 w-px",
-          isTomorrow 
-            ? "bg-[hsl(var(--tomorrow-foreground)/0.15)]" 
-            : "bg-border/50"
-        )} />
+        <div className="absolute left-12 top-0 bottom-0 w-px bg-[hsl(var(--tomorrow-foreground)/0.15)]" />
 
-        {/* Events and tasks for this hour */}
+        {/* Tasks for this hour */}
         <div className="flex-1 py-1.5 pl-3 pr-2">
-          {/* Calendar events - display side by side when multiple */}
-          {!isTomorrow && hourEvents.length > 0 && (
-            <div className={cn(
-              "flex gap-1.5 mb-1.5",
-              hourEvents.length > 1 ? "flex-row" : "flex-col"
-            )}>
-              {hourEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={hourEvents.length > 1 ? "flex-1 min-w-0" : "w-full"}
-                >
-                  <EventCard
-                    event={event}
-                    onClick={onEventClick ? () => onEventClick(event) : undefined}
-                    onRestore={onRestoreEvent ? () => onRestoreEvent(event.id) : undefined}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Ghost tasks (show original positions for moved tasks in draft mode) */}
-          {draftMode && !isTomorrow && hourGhosts.length > 0 && (
-            <div className="space-y-1.5 mb-1.5">
-              {hourGhosts.map((ghost) => (
-                <GhostTaskCard
-                  key={`ghost-${ghost.task.id}`}
-                  task={ghost.task}
-                  originalTime={ghost.originalTime}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Tasks */}
           {hourTasks.length > 0 && (
             <div className="space-y-1.5">
               {hourTasks.map((task, index) => {
@@ -367,7 +275,6 @@ export function TimelineView({
                         onDelete={onDeleteTask}
                         onDefer={onDeferTask}
                         onLockToggle={onLockToggle}
-                        onMoveToBacklog={!isTomorrow ? onMoveToBacklog : undefined}
                         onEdit={onEditTask}
                         onTap={() => {
                           setDrawerTask(task);
@@ -382,16 +289,12 @@ export function TimelineView({
                   );
                 }
 
-                // Desktop: Use standard card with drag-and-drop
+                // Desktop: Standard card (no drag on tomorrow)
                 return (
                   <div
                     key={task.id}
                     className="animate-slide-up"
                     style={{ animationDelay: `${index * 50}ms` }}
-                    draggable={!isTomorrow}
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('taskId', task.id);
-                    }}
                   >
                     <TaskCard
                       task={task}
@@ -399,10 +302,8 @@ export function TimelineView({
                       onDelete={onDeleteTask}
                       onDefer={onDeferTask}
                       onLockToggle={onLockToggle}
-                      onMoveToBacklog={!isTomorrow ? onMoveToBacklog : undefined}
                       onEdit={onEditTask}
                       compact
-                      draggable={!isTomorrow}
                       hideActions={draftMode}
                       changeType={change?.type}
                       originalTime={change?.originalTime}
@@ -417,17 +318,70 @@ export function TimelineView({
     );
   };
 
-  // Render today's timeline content
+  // Render today's timeline content with absolute positioning
   const renderTodayTimeline = () => (
-    <div className="relative">
+    <div
+      ref={timelineRef}
+      className="relative"
+      style={{ height: `${TOTAL_HEIGHT}px` }}
+      onDragOver={handleTimelineDragOver}
+      onDragLeave={handleTimelineDragLeave}
+      onDrop={handleTimelineDrop}
+    >
+      {/* Hour grid lines and labels - fixed compact height */}
+      {HOURS.map((hour) => {
+        const top = hour * HOUR_ROW_HEIGHT;
+        const isWorkHour = hour >= WORK_HOURS_START && hour < WORK_HOURS_END;
+        const isPast = hour < currentHour;
+        const isCurrent = hour === currentHour;
+
+        return (
+          <div
+            key={hour}
+            className={cn(
+              "absolute left-0 right-0 border-b border-border/30",
+              !isWorkHour && "bg-secondary/20",
+              isPast && "opacity-65"
+            )}
+            style={{
+              top: `${top}px`,
+              height: `${HOUR_ROW_HEIGHT}px`,
+            }}
+          >
+            {/* Hour label */}
+            <span
+              className={cn(
+                "absolute left-2 top-1 text-[11px] font-medium tabular-nums",
+                isCurrent ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              {formatHour(hour)}
+            </span>
+          </div>
+        );
+      })}
+
+      {/* Vertical divider line (after hour labels) */}
+      <div
+        className="absolute top-0 bottom-0 w-px bg-border/50"
+        style={{ left: `${HOUR_LABEL_WIDTH}px` }}
+      />
+
+      {/* Drop indicator line */}
+      {dropIndicatorY !== null && (
+        <div
+          className="absolute left-12 right-0 h-0.5 bg-primary z-20 pointer-events-none"
+          style={{ top: `${dropIndicatorY}px` }}
+        />
+      )}
+
       {/* Current time indicator */}
       <div
         ref={nowIndicatorRef}
         className="absolute left-0 right-0 z-10 pointer-events-none"
-        style={{ top: `${indicatorTop ?? fallbackPosition}px` }}
+        style={{ top: `${currentTimeTop}px` }}
       >
         <div className="flex items-center">
-          {/* Spacer to align with timeline content (matches hour label column) */}
           <div className="w-12 flex-shrink-0" />
           <div className="relative -ml-[5px]">
             <div className="w-2.5 h-2.5 rounded-full bg-primary" />
@@ -437,13 +391,97 @@ export function TimelineView({
         </div>
       </div>
 
-      {/* Timeline hours */}
-      {HOURS.map((hour) => {
-        const hourTasks = getTasksForHour(hour);
-        const hourEvents = getEventsForHour(hour);
-        const hourGhosts = getGhostsForHour(hour);
-        return renderHourRow(hour, hourTasks, hourEvents, hourGhosts);
-      })}
+      {/* Events lane (left side of content area) - only if has events */}
+      {hasEvents && (
+        <div
+          className="absolute top-0 bottom-0"
+          style={{
+            left: `${HOUR_LABEL_WIDTH + LANE_GAP}px`,
+            // If no tasks, events get full width; otherwise 50%
+            width: hasTasks
+              ? `calc((100% - ${HOUR_LABEL_WIDTH + LANE_GAP * 3}px) * 0.5)`
+              : `calc(100% - ${HOUR_LABEL_WIDTH + LANE_GAP * 2}px)`,
+          }}
+        >
+          {todayLayout.events.map((layout) => {
+            const event = eventsMap.get(layout.id);
+            if (!event) return null;
+            return (
+              <PositionedEventCard
+                key={layout.id}
+                layout={layout}
+                event={event}
+                onClick={onEventClick ? () => onEventClick(event) : undefined}
+                onRestore={onRestoreEvent ? () => onRestoreEvent(event.id) : undefined}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tasks lane (right side of content area, or full width if no events) */}
+      <div
+        className="absolute top-0 bottom-0"
+        style={{
+          // If no events, start from hour label; otherwise start after events lane
+          left: hasEvents
+            ? `calc(${HOUR_LABEL_WIDTH + LANE_GAP}px + (100% - ${HOUR_LABEL_WIDTH + LANE_GAP * 3}px) * 0.5 + ${LANE_GAP}px)`
+            : `${HOUR_LABEL_WIDTH + LANE_GAP}px`,
+          right: `${LANE_GAP}px`,
+        }}
+      >
+        {/* Ghost tasks for draft mode */}
+        {draftMode && ghostTasks.map((ghost) => {
+          const startMinutes = parseInt(ghost.originalTime.split(':')[0], 10) * 60 +
+            parseInt(ghost.originalTime.split(':')[1] || '0', 10);
+          const duration = ghost.task.duration || 30;
+          const top = startMinutes * PIXELS_PER_MINUTE;
+          const height = Math.max(MIN_CARD_HEIGHT, duration * PIXELS_PER_MINUTE);
+
+          return (
+            <div
+              key={`ghost-${ghost.task.id}`}
+              className="absolute left-0 right-0 px-0.5"
+              style={{ top: `${top}px`, height: `${height}px` }}
+            >
+              <GhostTaskCard
+                task={ghost.task}
+                originalTime={ghost.originalTime}
+              />
+            </div>
+          );
+        })}
+
+        {/* Positioned tasks */}
+        {todayLayout.tasks.map((layout) => {
+          const task = tasksMap.get(layout.id);
+          if (!task) return null;
+          const change = draftMode ? draftChanges?.get(task.id) : undefined;
+
+          return (
+            <PositionedTaskCard
+              key={layout.id}
+              layout={layout}
+              task={task}
+              onToggle={onToggleTask}
+              onDelete={onDeleteTask}
+              onDefer={onDeferTask}
+              onLockToggle={onLockToggle}
+              onMoveToBacklog={onMoveToBacklog}
+              onEdit={onEditTask}
+              onTap={() => {
+                setDrawerTask(task);
+                setDrawerOpen(true);
+              }}
+              hideActions={draftMode}
+              changeType={change?.type}
+              originalTime={change?.originalTime}
+              draggable={!draftMode}
+              onDragStart={handleTaskDragStart}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -452,9 +490,7 @@ export function TimelineView({
     <div className="relative">
       {tomorrowHours.map((hour) => {
         const hourTasks = getTasksForHour(hour, tomorrowTasks);
-        return renderHourRow(hour, hourTasks, [], [], { 
-          isTomorrow: true
-        });
+        return renderTomorrowHourRow(hour, hourTasks);
       })}
       
       {/* Empty state if somehow we have no hours but have tasks */}

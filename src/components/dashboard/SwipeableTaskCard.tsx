@@ -27,6 +27,10 @@ interface SwipeableTaskCardProps {
   hideActions?: boolean;
   changeType?: TaskChangeType;
   originalTime?: string | null;
+  /** Available height for the card (enables progressive collapse) */
+  availableHeight?: number;
+  /** Card is width-constrained due to column overlap - disables swipe */
+  isWidthConstrained?: boolean;
 }
 
 const SWIPE_THRESHOLD = 0.35; // 35% of card width
@@ -46,8 +50,15 @@ export function SwipeableTaskCard({
   hideActions = false,
   changeType,
   originalTime,
+  availableHeight,
+  isWidthConstrained = false,
   ...restProps
 }: SwipeableTaskCardProps) {
+  const isHeightConstrained = availableHeight !== undefined;
+  // Determine if backlog action is available (affects swipe behavior)
+  const hasBacklogAction = !!(onMoveToBacklog && task.scheduled_time && !task.completed);
+  // When reveal mode but no backlog, behave like delete mode
+  const effectiveLeftAction = leftSwipeAction === 'reveal' && !hasBacklogAction ? 'delete' : leftSwipeAction;
   const containerRef = useRef<HTMLDivElement>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
@@ -138,8 +149,8 @@ export function SwipeableTaskCard({
 
       if (active) {
         // While dragging, update position
-        // Limit left swipe based on action mode
-        const maxLeftSwipe = leftSwipeAction === 'delete' ? -containerWidth : -REVEAL_WIDTH;
+        // Limit left swipe based on action mode (use effectiveLeftAction)
+        const maxLeftSwipe = effectiveLeftAction === 'delete' ? -containerWidth : -REVEAL_WIDTH;
         const clampedX = Math.max(maxLeftSwipe, mx);
         setOffsetX(clampedX);
       } else {
@@ -151,8 +162,8 @@ export function SwipeableTaskCard({
           handleRightSwipeAction();
         } else if (mx < -threshold || (fastSwipe && dx < 0 && mx < -50)) {
           // Swipe left past threshold
-          if (leftSwipeAction === 'delete') {
-            // Direct delete
+          if (effectiveLeftAction === 'delete') {
+            // Direct delete (also used when reveal mode has no backlog)
             handleLeftSwipeDelete();
           } else {
             // Reveal action buttons
@@ -177,34 +188,39 @@ export function SwipeableTaskCard({
   const showLeftActions = offsetX < -20;
 
   return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-2xl">
-      {/* Right swipe background - Complete or Schedule action */}
-      <div
-        className={cn(
-          "absolute inset-y-0 left-0 flex items-center justify-start pl-4 transition-opacity",
-          rightSwipeAction === 'schedule'
-            ? "bg-primary"
-            : task.completed
-              ? "bg-amber-500"
-              : "bg-success",
-          showRightAction ? "opacity-100" : "opacity-0"
-        )}
-        style={{ width: Math.max(offsetX, 0) }}
-      >
-        {rightSwipeAction === 'schedule' ? (
-          <Calendar className="w-6 h-6 text-white" />
-        ) : task.completed ? (
-          <Undo2 className="w-6 h-6 text-white" />
-        ) : (
-          <Check className="w-6 h-6 text-white" strokeWidth={3} />
-        )}
-      </div>
-
-      {/* Left swipe background - Delete action (swipe mode) */}
-      {leftSwipeAction === 'delete' && (
+    <div ref={containerRef} className={cn(
+      "relative overflow-hidden rounded-2xl",
+      isHeightConstrained && "h-full"
+    )}>
+      {/* Right swipe background - Complete or Schedule action (hidden when width-constrained) */}
+      {!isWidthConstrained && (
         <div
           className={cn(
-            "absolute inset-y-0 right-0 flex items-center justify-end pr-4 transition-opacity bg-destructive",
+            "absolute inset-y-0 left-0 flex items-center justify-center transition-opacity",
+            rightSwipeAction === 'schedule'
+              ? "bg-primary"
+              : task.completed
+                ? "bg-amber-500"
+                : "bg-success",
+            showRightAction ? "opacity-100" : "opacity-0"
+          )}
+          style={{ width: Math.max(offsetX, 0) }}
+        >
+          {rightSwipeAction === 'schedule' ? (
+            <Calendar className="w-6 h-6 text-white" />
+          ) : task.completed ? (
+            <Undo2 className="w-6 h-6 text-white" />
+          ) : (
+            <Check className="w-6 h-6 text-white" strokeWidth={3} />
+          )}
+        </div>
+      )}
+
+      {/* Left swipe background - Delete action (swipe mode or reveal with no backlog, hidden when width-constrained) */}
+      {!isWidthConstrained && effectiveLeftAction === 'delete' && (
+        <div
+          className={cn(
+            "absolute inset-y-0 right-0 flex items-center justify-center transition-opacity bg-destructive",
             showLeftActions ? "opacity-100" : "opacity-0"
           )}
           style={{ width: Math.abs(Math.min(offsetX, 0)) }}
@@ -213,44 +229,69 @@ export function SwipeableTaskCard({
         </div>
       )}
 
-      {/* Left swipe background - Action buttons (reveal mode) */}
-      {leftSwipeAction === 'reveal' && (
-        <div
-          className={cn(
-            "absolute inset-y-0 right-0 flex items-center gap-1 pr-2 transition-opacity",
-            showLeftActions ? "opacity-100" : "opacity-0"
-          )}
-          style={{ width: REVEAL_WIDTH }}
-        >
-          {/* Move to Backlog button - larger */}
-          {onMoveToBacklog && task.scheduled_time && !task.completed && (
-            <button
-              onClick={handleMoveToBacklog}
-              className="flex-1 h-full flex flex-col items-center justify-center bg-primary rounded-xl text-primary-foreground"
-            >
-              <Inbox className="w-5 h-5" />
-              <span className="text-[10px] font-semibold mt-1">Backlog</span>
-            </button>
-          )}
+      {/* Left swipe background - Action buttons (reveal mode with backlog, hidden when width-constrained) */}
+      {!isWidthConstrained && effectiveLeftAction === 'reveal' && (() => {
+        const isTallCard = availableHeight !== undefined && availableHeight >= 120;
 
-          {/* Delete button */}
-          <button
-            onClick={handleDelete}
-            className="h-full aspect-square flex items-center justify-center bg-destructive rounded-xl text-destructive-foreground"
+        return (
+          <div
+            className={cn(
+              "absolute inset-y-0 right-0 flex items-center justify-center transition-opacity",
+              showLeftActions ? "opacity-100" : "opacity-0"
+            )}
+            style={{ width: REVEAL_WIDTH }}
           >
-            <Trash2 className="w-5 h-5" />
-          </button>
-        </div>
-      )}
+            {/* Tall cards: Stack buttons vertically */}
+            {isTallCard ? (
+              <div className="flex flex-col gap-1 h-full w-full py-1 pl-1 pr-2">
+                <button
+                  onClick={handleMoveToBacklog}
+                  className="flex-1 flex items-center justify-center gap-2 bg-primary rounded-xl text-primary-foreground"
+                >
+                  <Inbox className="w-5 h-5" />
+                  <span className="text-xs font-semibold">Backlog</span>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 flex items-center justify-center gap-2 bg-destructive rounded-xl text-destructive-foreground"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span className="text-xs font-semibold">Delete</span>
+                </button>
+              </div>
+            ) : (
+              /* Short cards: Side-by-side buttons */
+              <div className="flex items-center gap-1 h-full max-h-14 pr-2">
+                <button
+                  onClick={handleMoveToBacklog}
+                  className="h-full px-3 flex flex-col items-center justify-center bg-primary rounded-xl text-primary-foreground"
+                >
+                  <Inbox className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold mt-0.5">Backlog</span>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="h-full aspect-square flex items-center justify-center bg-destructive rounded-xl text-destructive-foreground"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
-      {/* Card content - slides with gesture */}
+      {/* Card content - slides with gesture (disabled when width-constrained) */}
       <div
-        {...bind()}
+        {...(isWidthConstrained ? {} : bind())}
+        onClick={isWidthConstrained ? onTap : undefined}
         className={cn(
-          "relative touch-pan-y",
-          isDragging ? "" : "transition-transform duration-200 ease-out"
+          "relative",
+          !isWidthConstrained && "touch-pan-y",
+          isDragging ? "" : "transition-transform duration-200 ease-out",
+          isHeightConstrained && "h-full"
         )}
-        style={{ transform: `translateX(${offsetX}px)` }}
+        style={{ transform: isWidthConstrained ? undefined : `translateX(${offsetX}px)` }}
       >
         <TaskCard
           task={task}
@@ -261,6 +302,8 @@ export function SwipeableTaskCard({
           hideActions={hideActions || true} // Always hide hover actions on mobile
           changeType={changeType}
           originalTime={originalTime}
+          availableHeight={availableHeight}
+          isWidthConstrained={isWidthConstrained}
           {...restProps}
         />
       </div>
