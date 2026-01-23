@@ -240,16 +240,12 @@ export function TaskList({
                         key={task.id}
                         className="animate-slide-up"
                         style={{ animationDelay: `${index * 50}ms` }}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('taskId', task.id)}
                       >
                         <TaskCard
                           task={task}
                           onToggle={onToggleTask}
                           onDelete={onDeleteTask}
-                          onScheduleToToday={onScheduleToToday}
                           onEdit={onEditTask}
-                          draggable
                           showCompletionToggle={false}
                         />
                       </div>

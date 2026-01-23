@@ -43,7 +43,7 @@ export function MobileBacklogList({
   const uncompletedTasks = allTasks.filter(t => !t.completed);
   const totalCount = allTasks.length;
 
-  const renderTaskCard = (task: Task, index: number) => (
+  const renderTaskCard = (task: Task, index: number, allowScheduleToToday = true) => (
     <div
       key={task.id}
       className="animate-slide-up"
@@ -53,11 +53,11 @@ export function MobileBacklogList({
         task={task}
         onToggle={onToggleTask}
         onDelete={onDeleteTask}
-        onDefer={onDeferTask}
+        onDefer={allowScheduleToToday ? onDeferTask : undefined}
         onEdit={onEditTask}
         onLockToggle={onLockToggle}
-        onRightSwipe={onScheduleToToday}
-        rightSwipeAction="schedule"
+        onRightSwipe={allowScheduleToToday ? onScheduleToToday : undefined}
+        rightSwipeAction={allowScheduleToToday ? "schedule" : "complete"}
         leftSwipeAction="delete"
         onMoveToBacklog={undefined}
         onTap={() => {
@@ -158,7 +158,7 @@ export function MobileBacklogList({
                 </button>
                 {deferredExpanded && (
                   <div className="space-y-2.5">
-                    {deferredTasks.map((task, index) => renderTaskCard(task, index))}
+                    {deferredTasks.map((task, index) => renderTaskCard(task, index, false))}
                   </div>
                 )}
               </div>
@@ -168,18 +168,23 @@ export function MobileBacklogList({
       </div>
 
       {/* Task action drawer - backlog context */}
-      <TaskActionDrawer
-        task={drawerTask}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        onToggle={onToggleTask}
-        onDelete={onDeleteTask}
-        onDefer={onDeferTask}
-        onEdit={onEditTask}
-        onLockToggle={onLockToggle}
-        onScheduleToToday={onScheduleToToday}
-        context="backlog"
-      />
+      {(() => {
+        const isDeferredTask = drawerTask && deferredTasks.some(t => t.id === drawerTask.id);
+        return (
+          <TaskActionDrawer
+            task={drawerTask}
+            open={drawerOpen}
+            onOpenChange={setDrawerOpen}
+            onToggle={onToggleTask}
+            onDelete={onDeleteTask}
+            onDefer={isDeferredTask ? undefined : onDeferTask}
+            onEdit={onEditTask}
+            onLockToggle={onLockToggle}
+            onScheduleToToday={isDeferredTask ? undefined : onScheduleToToday}
+            context="backlog"
+          />
+        );
+      })()}
     </div>
   );
 }
