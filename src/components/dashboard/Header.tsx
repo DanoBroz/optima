@@ -128,13 +128,13 @@ export function Header({
               <span>{isScheduling ? 'Rescheduling...' : 'Reschedule Timeline'}</span>
             </button>
             
-            {/* Add task button (desktop only) */}
+            {/* Add button (desktop only) */}
             <button
               onClick={onAddTask}
               className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-2xl font-semibold text-sm shadow-card hover:shadow-elevated transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               <Plus className="w-5 h-5" />
-              <span>New Task</span>
+              <span>Add</span>
             </button>
 
             {/* Theme toggle button */}

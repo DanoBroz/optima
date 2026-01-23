@@ -2,8 +2,7 @@ import { useState, useCallback } from 'react';
 import { Header } from '@/components/dashboard/Header';
 import { TabBar } from '@/components/dashboard/TabBar';
 import { DraftActionBar } from '@/components/dashboard/DraftActionBar';
-import { AddTaskModal } from '@/components/dashboard/AddTaskModal';
-import { AddEventModal } from '@/components/dashboard/AddEventModal';
+import { AddModal, type AddModalTab } from '@/components/dashboard/AddModal';
 import { SyncCalendarModal } from '@/components/dashboard/SyncCalendarModal';
 import { SettingsModal } from '@/components/dashboard/SettingsModal';
 import { DashboardPanels } from '@/components/dashboard/DashboardPanels';
@@ -36,8 +35,8 @@ interface PendingTask {
 
 const Index = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalInitialTab, setAddModalInitialTab] = useState<AddModalTab>('task');
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -139,14 +138,22 @@ const Index = () => {
     setPendingDateChange(null);
   }, []);
 
-  const handleEventClick = (event: CalendarEvent) => {
-    setEditingEvent(event);
-    setIsEventModalOpen(true);
+  // Helper to open unified add modal
+  const openAddModal = (tab: AddModalTab = 'task') => {
+    setAddModalInitialTab(tab);
+    setIsAddModalOpen(true);
   };
 
-  const handleEventModalClose = () => {
-    setIsEventModalOpen(false);
+  const handleAddModalClose = () => {
+    setIsAddModalOpen(false);
     setEditingEvent(null);
+    setEditingTask(null);
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setEditingEvent(event);
+    setAddModalInitialTab('event');
+    setIsAddModalOpen(true);
   };
 
   const handleDismissEvent = (id: string) => {
@@ -161,20 +168,16 @@ const Index = () => {
     const task = tasks.find(t => t.id === id);
     if (task) {
       setEditingTask(task);
-      setIsTaskModalOpen(true);
+      setAddModalInitialTab('task');
+      setIsAddModalOpen(true);
     }
-  };
-
-  const handleTaskModalClose = () => {
-    setIsTaskModalOpen(false);
-    setEditingTask(null);
   };
 
   const handleAddTask = (task: Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     // Handle edit mode
     if (editingTask) {
       taskActions.update(editingTask.id, task);
-      handleTaskModalClose();
+      handleAddModalClose();
       return;
     }
 
@@ -418,10 +421,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen md:h-screen md:overflow-hidden bg-background flex flex-col">
-      <Header 
+      <Header
         selectedDate={selectedDate}
         onDateChange={handleDateChange}
-        onAddTask={() => setIsTaskModalOpen(true)} 
+        onAddTask={() => openAddModal('task')}
         onAutoSchedule={handleHeaderOptimize}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         isScheduling={isScheduling || draft.isProcessing}
@@ -442,10 +445,7 @@ const Index = () => {
         isScheduling={isScheduling || draft.isProcessing}
         onEventClick={handleEventClick}
         onRestoreEvent={handleRestoreEvent}
-        onOpenEventModal={() => {
-          setEditingEvent(null);
-          setIsEventModalOpen(true);
-        }}
+        onOpenEventModal={() => openAddModal('event')}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
         taskActions={{
           ...taskActions,
@@ -495,28 +495,25 @@ const Index = () => {
         <TabBar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          onAddTask={() => setIsTaskModalOpen(true)}
+          onAddTask={() => openAddModal('task')}
           onAutoSchedule={handleHeaderOptimize}
           isScheduling={isScheduling || draft.isProcessing}
         />
       )}
 
       {/* Modals */}
-      <AddTaskModal
-        isOpen={isTaskModalOpen}
-        onClose={handleTaskModalClose}
-        onAdd={handleAddTask}
-        editTask={editingTask ?? undefined}
-      />
-      <AddEventModal
-        isOpen={isEventModalOpen}
-        onClose={handleEventModalClose}
-        onAdd={eventActions.add}
-        onUpdate={eventActions.update}
-        onDelete={eventActions.remove}
-        onDismiss={handleDismissEvent}
-        selectedDate={selectedDate}
+      <AddModal
+        isOpen={isAddModalOpen}
+        onClose={handleAddModalClose}
+        onAddTask={handleAddTask}
+        editTask={editingTask}
+        onAddEvent={eventActions.add}
+        onUpdateEvent={eventActions.update}
+        onDeleteEvent={eventActions.remove}
+        onDismissEvent={handleDismissEvent}
         editEvent={editingEvent}
+        selectedDate={selectedDate}
+        initialTab={addModalInitialTab}
       />
       <SyncCalendarModal
         isOpen={isSyncModalOpen}
