@@ -1,5 +1,5 @@
 import { format, addDays, subDays } from 'date-fns';
-import { Plus, ChevronLeft, ChevronRight, Sparkles, Sun, Moon, Monitor, Settings } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Sparkles, Sun, Moon, Monitor, Settings, Undo2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 interface HeaderProps {
@@ -103,6 +103,17 @@ export function Header({
             >
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </button>
+
+            {/* Today button - only shows when not viewing today */}
+            {!isToday && (
+              <button
+                onClick={() => onDateChange(new Date())}
+                className="p-2 hover:bg-secondary rounded-xl transition-all active:scale-95"
+                title="Go to today"
+              >
+                <Undo2 className="w-4 h-4 text-primary" />
+              </button>
+            )}
           </div>
           
           {/* Actions - right side */}
