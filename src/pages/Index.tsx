@@ -315,8 +315,12 @@ const Index = () => {
   };
 
   const handleOptimizeAll = async (): Promise<{ scheduled: Task[]; unscheduled: Task[] }> => {
+    // Only include tasks for today or with no date (exclude future-dated tasks)
     const backlogTasks = tasks.filter(
-      task => !task.scheduled_time && !task.completed && !task.is_locked
+      task => !task.scheduled_time &&
+              !task.completed &&
+              !task.is_locked &&
+              (!task.scheduled_date || task.scheduled_date === dateStr)
     );
 
     if (backlogTasks.length === 0) {

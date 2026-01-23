@@ -324,13 +324,14 @@ export const autoScheduleSelectedTasks = (
   dailyEnergy: DailyEnergyLevel,
   targetDate: string
 ): Task[] => {
-  // Filter to only selected, unscheduled, unlocked, incomplete tasks
+  // Filter to only selected, unscheduled, unlocked, incomplete tasks for today or with no date
   const tasksToSchedule = allTasks.filter(
     task =>
       selectedIds.includes(task.id) &&
       !task.scheduled_time &&
       !task.completed &&
-      !task.is_locked
+      !task.is_locked &&
+      (!task.scheduled_date || task.scheduled_date === targetDate)
   );
 
   if (tasksToSchedule.length === 0) return [];
@@ -416,9 +417,12 @@ export const autoScheduleBacklogTasks = (
   dailyEnergy: DailyEnergyLevel,
   targetDate: string
 ): Task[] => {
-  // Filter to only unscheduled, unlocked, incomplete tasks
+  // Filter to only unscheduled, unlocked, incomplete tasks for today or with no date
   const tasksToSchedule = allTasks.filter(
-    task => !task.scheduled_time && !task.completed && !task.is_locked
+    task => !task.scheduled_time &&
+            !task.completed &&
+            !task.is_locked &&
+            (!task.scheduled_date || task.scheduled_date === targetDate)
   );
 
   if (tasksToSchedule.length === 0) return [];
