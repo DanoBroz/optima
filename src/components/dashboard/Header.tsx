@@ -19,7 +19,7 @@ export function Header({
   onOpenSettings,
   isScheduling
 }: HeaderProps) {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const dayName = format(selectedDate, 'EEEE');
   const dateStr = format(selectedDate, 'MMM d');
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
@@ -49,8 +49,26 @@ export function Header({
     }
   };
 
-  // Icon shows current mode
-  const ThemeIcon = theme === 'system' ? Monitor : theme === 'dark' ? Moon : Sun;
+  // Render theme icon - system mode shows combined indicator
+  const renderThemeIcon = () => {
+    if (theme === 'system') {
+      // Combined indicator: Monitor with small sun/moon badge
+      return (
+        <div className="relative">
+          <Monitor className="w-5 h-5" />
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-secondary rounded-full flex items-center justify-center">
+            {resolvedTheme === 'dark' ? (
+              <Moon className="w-1.5 h-1.5" />
+            ) : (
+              <Sun className="w-1.5 h-1.5" />
+            )}
+          </div>
+        </div>
+      );
+    }
+    // Explicit theme: show moon for dark, sun for light
+    return theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />;
+  };
 
   return (
     <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl safe-area-inset-top">
@@ -115,7 +133,7 @@ export function Header({
               aria-label="Toggle theme"
               title={theme === 'system' ? 'System theme' : theme === 'dark' ? 'Dark theme' : 'Light theme'}
             >
-              <ThemeIcon className="w-5 h-5" />
+              {renderThemeIcon()}
             </button>
 
             {/* Settings button */}
