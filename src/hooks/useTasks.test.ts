@@ -88,7 +88,7 @@ describe('useTasks', () => {
     // Default mock implementations
     vi.mocked(taskRepository.getAll).mockResolvedValue([]);
     vi.mocked(eventRepository.getByDateRange).mockResolvedValue([]);
-    vi.mocked(energyRepository.getByDate).mockResolvedValue(null);
+    vi.mocked(energyRepository.getByDate).mockResolvedValue(undefined);
   });
 
   describe('initial data loading', () => {
