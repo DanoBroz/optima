@@ -133,8 +133,13 @@ export function AddModal({
       setEventTitle(editEvent.title);
       const startDate = new Date(editEvent.start_time);
       const endDate = new Date(editEvent.end_time);
-      setEventStartTime(format(startDate, 'HH:mm'));
-      setEventEndTime(format(endDate, 'HH:mm'));
+      // Use UTC methods to match the Z suffix used when saving
+      const startHours = startDate.getUTCHours().toString().padStart(2, '0');
+      const startMinutes = startDate.getUTCMinutes().toString().padStart(2, '0');
+      const endHours = endDate.getUTCHours().toString().padStart(2, '0');
+      const endMinutes = endDate.getUTCMinutes().toString().padStart(2, '0');
+      setEventStartTime(`${startHours}:${startMinutes}`);
+      setEventEndTime(`${endHours}:${endMinutes}`);
       setEventLocation(editEvent.location || '');
       setEventEnergyLevel(editEvent.energy_level || 'medium');
       setEventUseCustomDrain(editEvent.energy_drain !== undefined && editEvent.energy_drain !== null);
