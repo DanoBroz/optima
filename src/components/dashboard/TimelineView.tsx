@@ -51,8 +51,6 @@ interface TimelineViewProps {
   onLockToggle: (id: string) => void;
   onMoveToBacklog?: (id: string) => void;
   onEditTask?: (id: string) => void;
-  onEventClick?: (event: CalendarEvent) => void;
-  onRestoreEvent?: (id: string) => void;
   /** Draft mode props */
   draftMode?: boolean;
   draftChanges?: Map<string, TaskChange>;
@@ -98,8 +96,6 @@ export function TimelineView({
   onLockToggle,
   onMoveToBacklog,
   onEditTask,
-  onEventClick,
-  onRestoreEvent,
   draftMode = false,
   draftChanges,
   ghostTasks = [],
@@ -438,7 +434,7 @@ export function TimelineView({
           );
         })}
 
-        {/* Positioned events */}
+        {/* Positioned events - actions provided via DashboardContext */}
         {todayLayout.events.map((layout) => {
           const event = eventsMap.get(layout.id);
           if (!event) return null;
@@ -447,32 +443,21 @@ export function TimelineView({
               key={layout.id}
               layout={layout}
               event={event}
-              onClick={onEventClick ? () => onEventClick(event) : undefined}
-              onRestore={onRestoreEvent ? () => onRestoreEvent(event.id) : undefined}
             />
           );
         })}
 
-        {/* Positioned tasks */}
+        {/* Positioned tasks - actions provided via DashboardContext */}
         {todayLayout.tasks.map((layout) => {
           const task = tasksMap.get(layout.id);
           if (!task) return null;
           const change = draftMode ? draftChanges?.get(task.id) : undefined;
-          const taskActions: TaskCardActions = {
-            onToggle: onToggleTask,
-            onDelete: onDeleteTask,
-            onDefer: onDeferTask,
-            onLockToggle,
-            onMoveToBacklog,
-            onEdit: onEditTask,
-          };
 
           return (
             <PositionedTaskCard
               key={layout.id}
               layout={layout}
               task={task}
-              actions={taskActions}
               draftState={{ changeType: change?.type, originalTime: change?.originalTime }}
               onTap={() => {
                 setDrawerTask(task);

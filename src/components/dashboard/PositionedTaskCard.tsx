@@ -5,11 +5,13 @@ import { useDraggable } from '@dnd-kit/core';
 import { TaskCard, type TaskCardActions, type TaskCardDraftState } from './TaskCard';
 import { SwipeableTaskCard } from './SwipeableTaskCard';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useDashboardTaskActions } from '@/contexts/DashboardContext';
 
 interface PositionedTaskCardProps {
   layout: LayoutItem;
   task: Task;
-  actions: TaskCardActions;
+  /** Actions can be passed explicitly or obtained from DashboardContext */
+  actions?: TaskCardActions;
   draftState?: TaskCardDraftState;
   onTap?: () => void;
   hideActions?: boolean;
@@ -19,7 +21,7 @@ interface PositionedTaskCardProps {
 export function PositionedTaskCard({
   layout,
   task,
-  actions,
+  actions: actionsProp,
   draftState = {},
   onTap,
   hideActions = false,
@@ -27,6 +29,17 @@ export function PositionedTaskCard({
 }: PositionedTaskCardProps) {
   const isMobile = useIsMobile();
   const { column, totalColumns, top, height } = layout;
+
+  // Use context actions if not provided via props
+  const contextActions = useDashboardTaskActions();
+  const actions: TaskCardActions = actionsProp ?? {
+    onToggle: contextActions.onToggle,
+    onDelete: contextActions.onDelete,
+    onDefer: contextActions.onDefer,
+    onLockToggle: contextActions.onLockToggle,
+    onMoveToBacklog: contextActions.onMoveToBacklog,
+    onEdit: contextActions.onEdit,
+  };
 
   // dnd-kit draggable hook
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({

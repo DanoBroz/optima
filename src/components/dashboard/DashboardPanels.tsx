@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { CalendarEvent, DayCapacity, DailyEnergy, DayIntention, Task } from '@/types/task';
 import type { TaskChange } from '@/hooks/useDraft';
 import { DailyEnergySelector } from '@/components/dashboard/DailyEnergySelector';
@@ -9,6 +9,7 @@ import { TimelineView } from '@/components/dashboard/TimelineView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { ChangesSummary } from '@/hooks/useDraft';
 import { RefreshCw, Calendar, Inbox } from 'lucide-react';
+import { DashboardProvider, type DashboardTaskActions, type DashboardEventActions } from '@/contexts/DashboardContext';
 
 type TabType = 'timeline' | 'today' | 'backlog';
 
@@ -130,7 +131,25 @@ export function DashboardPanels({
     ? scheduledTasks // In draft mode, scheduledTasks will be the proposed tasks passed from Index
     : scheduledTasks;
 
+  // Memoize context values to prevent unnecessary re-renders
+  const dashboardTaskActions: DashboardTaskActions = useMemo(() => ({
+    onToggle: taskActions.toggle,
+    onDelete: taskActions.remove,
+    onDefer: taskActions.defer,
+    onReschedule: taskActions.reschedule,
+    onLockToggle: taskActions.toggleLock,
+    onMoveToBacklog: taskActions.moveToBacklog,
+    onScheduleToToday: taskActions.scheduleToToday,
+    onEdit: taskActions.edit,
+  }), [taskActions]);
+
+  const dashboardEventActions: DashboardEventActions = useMemo(() => ({
+    onClick: onEventClick,
+    onRestore: onRestoreEvent,
+  }), [onEventClick, onRestoreEvent]);
+
   return (
+    <DashboardProvider taskActions={dashboardTaskActions} eventActions={dashboardEventActions}>
     <main className="flex-1 flex flex-col md:flex-row gap-5 md:gap-8 container py-2 md:py-6 pb-28 md:pb-6 md:overflow-hidden">
       {/* Desktop sidebar - tabbed */}
       <aside className="hidden md:block w-[340px] flex-shrink-0 h-full">
@@ -207,8 +226,6 @@ export function DashboardPanels({
                 onLockToggle={taskActions.toggleLock}
                 onMoveToBacklog={taskActions.moveToBacklog}
                 onEditTask={taskActions.edit}
-                onEventClick={onEventClick}
-                onRestoreEvent={onRestoreEvent}
                 draftMode={draftMode?.isActive}
                 draftChanges={draftMode?.changes}
                 ghostTasks={draftMode?.ghostTasks}
@@ -272,8 +289,6 @@ export function DashboardPanels({
             onLockToggle={taskActions.toggleLock}
             onMoveToBacklog={taskActions.moveToBacklog}
             onEditTask={taskActions.edit}
-            onEventClick={onEventClick}
-            onRestoreEvent={onRestoreEvent}
             draftMode={draftMode?.isActive}
             draftChanges={draftMode?.changes}
             ghostTasks={draftMode?.ghostTasks}
@@ -291,5 +306,6 @@ export function DashboardPanels({
         </div>
       </div>
     </main>
+    </DashboardProvider>
   );
 }
