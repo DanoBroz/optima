@@ -94,7 +94,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </label>
                   <TimePicker
                     value={settings.work_start_time}
-                    onChange={(time) =>
+                    onChange={(time: string | undefined) =>
                       setSettings(prev => ({ ...prev, work_start_time: time || '09:00' }))
                     }
                   />
@@ -105,7 +105,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </label>
                   <TimePicker
                     value={settings.work_end_time}
-                    onChange={(time) =>
+                    onChange={(time: string | undefined) =>
                       setSettings(prev => ({ ...prev, work_end_time: time || '17:00' }))
                     }
                   />

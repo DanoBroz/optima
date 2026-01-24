@@ -359,7 +359,7 @@ export function AddModal({
                   </label>
                   <DatePicker
                     value={taskScheduledDate || undefined}
-                    onChange={(date) => setTaskScheduledDate(date || '')}
+                    onChange={(date: string | undefined) => setTaskScheduledDate(date || '')}
                     placeholder="Select date"
                     clearable
                   />
@@ -370,7 +370,7 @@ export function AddModal({
                   </label>
                   <TimePicker
                     value={taskTime || undefined}
-                    onChange={(time) => setTaskTime(time || '')}
+                    onChange={(time: string | undefined) => setTaskTime(time || '')}
                     placeholder="Select time"
                     clearable
                   />
@@ -569,7 +569,7 @@ export function AddModal({
                   </label>
                   <TimePicker
                     value={eventStartTime}
-                    onChange={(time) => setEventStartTime(time || '09:00')}
+                    onChange={(time: string | undefined) => setEventStartTime(time || '09:00')}
                     disabled={isFieldDisabled}
                   />
                 </div>
@@ -579,7 +579,7 @@ export function AddModal({
                   </label>
                   <TimePicker
                     value={eventEndTime}
-                    onChange={(time) => setEventEndTime(time || '10:00')}
+                    onChange={(time: string | undefined) => setEventEndTime(time || '10:00')}
                     disabled={isFieldDisabled}
                   />
                 </div>
