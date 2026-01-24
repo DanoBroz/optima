@@ -519,6 +519,7 @@ const Index = () => {
         onClose={() => setIsSyncModalOpen(false)}
         onImport={eventActions.import}
         onClearSyncedEvents={eventActions.clearExternal}
+        onApplySyncChanges={eventActions.applySync}
         selectedDate={selectedDate}
         existingEvents={events}
       />

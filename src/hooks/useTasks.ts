@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel, DayIntention, AvailabilityWindows } from '@/types/task';
+import type { Task, CalendarEvent, DailyEnergy, DailyEnergyLevel, DayIntention, AvailabilityWindows, SyncDiff, SyncSelections } from '@/types/task';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { taskRepository } from '@/data/taskRepository';
@@ -746,6 +746,75 @@ export function useTasks(selectedDate: Date = new Date()) {
     }
   };
 
+  const applySyncChanges = async (
+    syncDiff: SyncDiff,
+    selections: SyncSelections
+  ): Promise<{ added: number; updated: number; deleted: number }> => {
+    if (!user) {
+      toast.error('Please sign in to sync events');
+      return { added: 0, updated: 0, deleted: 0 };
+    }
+
+    const timestamp = createTimestamp();
+    const stats = { added: 0, updated: 0, deleted: 0 };
+
+    try {
+      // 1. Add new events
+      const newEventsToAdd = syncDiff.newEvents
+        .filter(change => selections.newIds.has(change.external_id))
+        .map(change => ({
+          ...change.newEvent!,
+          id: self.crypto.randomUUID(),
+          user_id: user.id,
+          created_at: timestamp,
+          updated_at: timestamp,
+        })) as CalendarEvent[];
+
+      if (newEventsToAdd.length > 0) {
+        await eventRepository.bulkAdd(newEventsToAdd);
+        stats.added = newEventsToAdd.length;
+      }
+
+      // 2. Update existing events
+      const eventsToUpdate = syncDiff.updatedEvents
+        .filter(change => selections.updateIds.has(change.external_id))
+        .map(change => ({
+          id: change.existingEvent!.id,
+          updates: {
+            title: change.updatedEvent!.title,
+            start_time: change.updatedEvent!.start_time,
+            end_time: change.updatedEvent!.end_time,
+            location: change.updatedEvent!.location,
+            updated_at: timestamp,
+          },
+        }));
+
+      if (eventsToUpdate.length > 0) {
+        await eventRepository.bulkUpdate(eventsToUpdate);
+        stats.updated = eventsToUpdate.length;
+      }
+
+      // 3. Delete removed events
+      const idsToDelete = syncDiff.deletedEvents
+        .filter(change => selections.deleteIds.has(change.external_id))
+        .map(change => change.deletedEvent!.id);
+
+      if (idsToDelete.length > 0) {
+        await eventRepository.bulkRemove(idsToDelete);
+        stats.deleted = idsToDelete.length;
+      }
+
+      // Refresh events state to reflect all changes
+      await fetchEvents();
+
+      return stats;
+    } catch (error) {
+      console.error('Error applying sync changes:', error);
+      toast.error('Failed to apply sync changes');
+      throw error;
+    }
+  };
+
   const capacity = useMemo(
     () => calculateCapacity(tasks, events, dailyEnergy?.energy_level, dayIntention),
     [tasks, events, dailyEnergy, dayIntention]
@@ -812,6 +881,7 @@ export function useTasks(selectedDate: Date = new Date()) {
         remove: deleteEvent,
         import: importEvents,
         clearExternal: clearExternalEvents,
+        applySync: applySyncChanges,
       },
       energy: {
         setLevel: setDailyEnergyLevel,

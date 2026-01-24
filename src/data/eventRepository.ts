@@ -129,4 +129,53 @@ export const eventRepository = {
     if (error) throw error;
     return data?.length ?? 0;
   },
+
+  async getExternalEventsMap(): Promise<Map<string, CalendarEvent>> {
+    // Fetch all external events with full data for re-sync comparison
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .select('*')
+      .eq('is_external', true)
+      .not('external_id', 'is', null);
+
+    if (error) throw error;
+
+    const map = new Map<string, CalendarEvent>();
+    ((data ?? []) as EventRow[]).forEach((row) => {
+      const event = toEvent(row);
+      if (event.external_id) {
+        map.set(event.external_id, event);
+      }
+    });
+    return map;
+  },
+
+  async bulkUpdate(events: Array<{ id: string; updates: Partial<CalendarEvent> }>): Promise<void> {
+    if (events.length === 0) return;
+
+    // Use Promise.all for parallel updates
+    const results = await Promise.all(
+      events.map(({ id, updates }) =>
+        supabase
+          .from('calendar_events')
+          .update(updates as never)
+          .eq('id', id)
+      )
+    );
+
+    // Check for any errors
+    const firstError = results.find((r) => r.error)?.error;
+    if (firstError) throw firstError;
+  },
+
+  async bulkRemove(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const { error } = await supabase
+      .from('calendar_events')
+      .delete()
+      .in('id', ids);
+
+    if (error) throw error;
+  },
 };

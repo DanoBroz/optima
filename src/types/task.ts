@@ -78,3 +78,29 @@ export interface DayCapacity {
   available: number;
   percentage: number;
 }
+
+// Re-sync types for detecting calendar changes
+export type SyncChangeType = 'new' | 'updated' | 'deleted';
+
+export interface SyncChange {
+  type: SyncChangeType;
+  external_id: string;
+  newEvent?: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>;
+  existingEvent?: CalendarEvent;
+  updatedEvent?: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>;
+  deletedEvent?: CalendarEvent;
+  changedFields?: ('title' | 'start_time' | 'end_time' | 'location')[];
+}
+
+export interface SyncDiff {
+  newEvents: SyncChange[];
+  updatedEvents: SyncChange[];
+  deletedEvents: SyncChange[];
+  totalChanges: number;
+}
+
+export interface SyncSelections {
+  newIds: Set<string>;
+  updateIds: Set<string>;
+  deleteIds: Set<string>;
+}
