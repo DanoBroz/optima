@@ -1,6 +1,68 @@
 /**
- * Unified energy, priority, and motivation configurations.
- * Single source of truth - import from here instead of defining inline.
+ * Energy System Configuration
+ * ===========================
+ *
+ * This module defines the energy multipliers and configurations that drive
+ * Optima's capacity calculations and scheduling decisions.
+ *
+ * ## Design Philosophy
+ *
+ * The energy system is based on the principle that **productive capacity varies
+ * throughout the day and across days** depending on energy levels. Rather than
+ * treating all hours as equal, we adjust available capacity based on how the
+ * user feels.
+ *
+ * ## Multiplier Rationale
+ *
+ * ### Daily Energy Multipliers
+ *
+ * These represent what percentage of your theoretical maximum you can achieve:
+ *
+ * | Level     | Multiplier | Rationale |
+ * |-----------|------------|-----------|
+ * | exhausted | 0.3 (30%)  | Severe fatigue. Only essential tasks. Rest is priority. |
+ * | low       | 0.5 (50%)  | Below baseline. Focus on low-energy tasks. |
+ * | medium    | 0.7 (70%)  | Normal productive day. Good balance. |
+ * | high      | 0.85 (85%)| Above average. Can tackle demanding tasks. |
+ * | energized | 1.0 (100%) | Peak performance. Maximum capacity. |
+ *
+ * Note: Even "energized" doesn't exceed 100% because overcommitting leads to
+ * burnout. The multipliers are intentionally conservative.
+ *
+ * ### Day Intention Multipliers
+ *
+ * These let users consciously choose their day's intensity:
+ *
+ * | Intention | Multiplier | Use Case |
+ * |-----------|------------|----------|
+ * | push      | 1.2 (120%) | Deadline day. Willing to stretch limits temporarily. |
+ * | balance   | 1.0 (100%) | Sustainable pace. Default for most days. |
+ * | recovery  | 0.6 (60%)  | Post-crunch recovery. Prioritize wellbeing. |
+ *
+ * ### Event Energy Drain
+ *
+ * Events consume capacity based on their intensity:
+ *
+ * | Level   | Multiplier | Example |
+ * |---------|------------|---------|
+ * | restful | 0.0        | Lunch break, meditation, walk |
+ * | low     | 0.5        | Casual 1:1, reading time |
+ * | medium  | 1.0        | Regular meeting, focused work |
+ * | high    | 1.5        | Presentations, interviews, difficult conversations |
+ *
+ * A 1-hour "high" energy meeting drains 90 minutes of capacity because it
+ * requires preparation and recovery time beyond the meeting itself.
+ *
+ * ## How Multipliers Combine
+ *
+ * ```
+ * availableCapacity = baseMinutes × dailyEnergyMultiplier × intentionMultiplier
+ * ```
+ *
+ * Example: Exhausted (0.3) + Recovery (0.6) = 0.18 = only 18% capacity
+ * Example: Energized (1.0) + Push (1.2) = 1.2 = 120% capacity (stretch day)
+ *
+ * @module config/energy
  */
 
 import type { DailyEnergyLevel, DayIntention, MotivationLevel } from '@/types/task';
@@ -88,12 +150,16 @@ export interface DailyEnergyConfig {
   multiplier: number;
 }
 
+/**
+ * Daily energy levels with capacity multipliers.
+ * See module docs for rationale behind each multiplier value.
+ */
 export const DAILY_ENERGY_CONFIG: Record<DailyEnergyLevel, DailyEnergyConfig> = {
-  exhausted: { emoji: '🌙', label: 'Rest', multiplier: 0.3 },
-  low: { emoji: '🌿', label: 'Low', multiplier: 0.5 },
-  medium: { emoji: '☀️', label: 'Good', multiplier: 0.7 },
-  high: { emoji: '⚡', label: 'High', multiplier: 0.85 },
-  energized: { emoji: '🔥', label: 'Peak', multiplier: 1.0 },
+  exhausted: { emoji: '🌙', label: 'Rest', multiplier: 0.3 },   // Severe fatigue
+  low: { emoji: '🌿', label: 'Low', multiplier: 0.5 },          // Below baseline
+  medium: { emoji: '☀️', label: 'Good', multiplier: 0.7 },      // Normal day
+  high: { emoji: '⚡', label: 'High', multiplier: 0.85 },        // Above average
+  energized: { emoji: '🔥', label: 'Peak', multiplier: 1.0 },   // Maximum output
 } as const;
 
 /** Array form for rendering selection lists */
@@ -108,10 +174,17 @@ export const DAILY_ENERGY_OPTIONS = Object.entries(DAILY_ENERGY_CONFIG).map(
 // DAY INTENTION (push, balance, recovery)
 // =============================================================================
 
+/**
+ * Day intention multipliers for capacity adjustment.
+ *
+ * - push (1.2): User consciously choosing to exceed sustainable pace
+ * - balance (1.0): Default sustainable productivity
+ * - recovery (0.6): Deliberately reduced load for wellbeing
+ */
 export const INTENTION_MULTIPLIERS: Record<DayIntention, number> = {
-  push: 1.2,
-  balance: 1.0,
-  recovery: 0.6,
+  push: 1.2,      // Stretch day: deadlines, sprints
+  balance: 1.0,   // Sustainable pace (default)
+  recovery: 0.6,  // Rest day: post-crunch, sick recovery
 } as const;
 
 // =============================================================================

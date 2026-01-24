@@ -1,73 +1,77 @@
-# React + TypeScript + Vite
+# Optima
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A task scheduler that understands your energy. Schedule tasks when you're most productive.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Energy-aware scheduling** — Tasks are matched to your daily energy levels. High-energy tasks scheduled when you're energized, lighter tasks when you're running low.
 
-## React Compiler
+- **Auto-scheduling** — One-click optimization of your day. The algorithm considers priority, motivation, and energy alignment to find the best slots.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Draft mode** — Preview schedule changes before committing. Drag tasks to adjust, lock important times, then apply or discard.
 
-## Expanding the ESLint configuration
+- **Calendar sync** — Import events from ICS files. Events block time slots and drain energy based on their intensity.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Day intentions** — Set your day to "push", "balance", or "recovery" mode. This adjusts your available capacity accordingly.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Quick Start
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+```bash
+# Install dependencies
+yarn install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+yarn dev
+
+# Build for production
+yarn build
+
+# Run tests
+yarn test
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Tech Stack
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **Frontend:** React 19, TypeScript, Vite
+- **Styling:** Tailwind CSS, shadcn/ui components
+- **Backend:** Supabase (PostgreSQL, Auth)
+- **Testing:** Vitest, Testing Library
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Project Structure
+
 ```
+src/
+├── components/
+│   ├── dashboard/     # App-specific components
+│   └── ui/            # shadcn/ui primitives
+├── hooks/             # Custom React hooks
+├── services/          # Business logic
+├── data/              # Repository layer (Supabase)
+├── utils/             # Pure utility functions
+├── types/             # TypeScript interfaces
+└── config/            # Centralized configuration
+```
+
+## Architecture
+
+The codebase follows SOLID principles with clear separation of concerns:
+
+- **Repository Pattern** — `src/data/` handles all database operations
+- **Service Layer** — `src/services/` encapsulates business logic
+- **Hook Composition** — `useTasks` composes focused hooks for data orchestration
+- **Config-driven** — Energy levels, multipliers, and thresholds centralized in `src/config/`
+
+See [AGENTS.md](./AGENTS.md) for complete coding guidelines.
+
+## Environment Variables
+
+Required for Supabase connection:
+
+```
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+## License
+
+Private

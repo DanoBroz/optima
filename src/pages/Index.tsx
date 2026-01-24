@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import { Header } from '@/components/dashboard/Header';
 import { TabBar } from '@/components/dashboard/TabBar';
 import { DraftActionBar } from '@/components/dashboard/DraftActionBar';
-import { AddModal, type AddModalTab } from '@/components/dashboard/AddModal';
-import { SyncCalendarModal } from '@/components/dashboard/SyncCalendarModal';
 import { SettingsModal } from '@/components/dashboard/SettingsModal';
+
+// Lazy load modals for code splitting
+const AddModal = lazy(() => import('@/components/dashboard/AddModal').then(m => ({ default: m.AddModal })));
+const SyncCalendarModal = lazy(() => import('@/components/dashboard/SyncCalendarModal').then(m => ({ default: m.SyncCalendarModal })));
 import { DashboardPanels } from '@/components/dashboard/DashboardPanels';
 import { PastTimeConflictModal, type PastTimeResolution } from '@/components/dashboard/PastTimeConflictModal';
 import { NoSlotModal, type NoSlotResolution } from '@/components/dashboard/NoSlotModal';
@@ -20,31 +22,21 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useTasks } from '@/hooks/useTasks';
 import { useDraft } from '@/hooks/useDraft';
+import { useModalOrchestration } from '@/hooks/useModalOrchestration';
 import { taskRepository } from '@/data/taskRepository';
-import type { CalendarEvent, Task } from '@/types/task';
+import type { Task } from '@/types/task';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { scheduleService } from '@/services/scheduleService';
 
 type TabType = 'timeline' | 'today' | 'backlog';
 
-interface PendingTask {
-  task: Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
-  attemptedTime: string;
-}
-
 const Index = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addModalInitialTab, setAddModalInitialTab] = useState<AddModalTab>('task');
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
-  const [pendingTask, setPendingTask] = useState<PendingTask | null>(null);
-  const [pendingUnscheduledTasks, setPendingUnscheduledTasks] = useState<Task[]>([]);
-  const [pendingDateChange, setPendingDateChange] = useState<Date | null>(null);
+
+  // Modal orchestration (extracted for cleaner state management)
+  const { modals, editing, pending, actions: modalActions } = useModalOrchestration();
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
@@ -118,43 +110,28 @@ const Index = () => {
   // Handle date change - show confirmation if draft is active
   const handleDateChange = useCallback((newDate: Date) => {
     if (draft.isActive) {
-      setPendingDateChange(newDate); // Opens confirmation dialog
+      modalActions.setPendingDateChange(newDate); // Opens confirmation dialog
     } else {
       setSelectedDate(newDate);
     }
-  }, [draft]);
+  }, [draft, modalActions]);
 
   // Confirm date change and discard draft
   const handleConfirmDateChange = useCallback(() => {
-    if (pendingDateChange) {
+    if (pending.dateChange) {
       draft.cancelDraft();
-      setSelectedDate(pendingDateChange);
-      setPendingDateChange(null);
+      setSelectedDate(pending.dateChange);
+      modalActions.setPendingDateChange(null);
     }
-  }, [pendingDateChange, draft]);
+  }, [pending.dateChange, draft, modalActions]);
 
   // Cancel date change
   const handleCancelDateChange = useCallback(() => {
-    setPendingDateChange(null);
-  }, []);
+    modalActions.setPendingDateChange(null);
+  }, [modalActions]);
 
-  // Helper to open unified add modal
-  const openAddModal = (tab: AddModalTab = 'task') => {
-    setAddModalInitialTab(tab);
-    setIsAddModalOpen(true);
-  };
-
-  const handleAddModalClose = () => {
-    setIsAddModalOpen(false);
-    setEditingEvent(null);
-    setEditingTask(null);
-  };
-
-  const handleEventClick = (event: CalendarEvent) => {
-    setEditingEvent(event);
-    setAddModalInitialTab('event');
-    setIsAddModalOpen(true);
-  };
+  // Event handlers using modal orchestration
+  const handleEventClick = modalActions.openEditEvent;
 
   const handleDismissEvent = (id: string) => {
     eventActions.update(id, { is_dismissed: true });
@@ -167,23 +144,21 @@ const Index = () => {
   const handleEditTask = (id: string) => {
     const task = tasks.find(t => t.id === id);
     if (task) {
-      setEditingTask(task);
-      setAddModalInitialTab('task');
-      setIsAddModalOpen(true);
+      modalActions.openEditTask(task);
     }
   };
 
   const handleAddTask = (task: Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     // Handle edit mode
-    if (editingTask) {
-      taskActions.update(editingTask.id, task);
-      handleAddModalClose();
+    if (editing.task) {
+      taskActions.update(editing.task.id, task);
+      modalActions.closeAddModal();
       return;
     }
 
     // Check if task has a time set and if it's in the past
     if (task.scheduled_time && scheduling.isTimeInPast(task.scheduled_time)) {
-      setPendingTask({
+      modalActions.setPendingTask({
         task,
         attemptedTime: task.scheduled_time,
       });
@@ -194,9 +169,9 @@ const Index = () => {
   };
 
   const handlePastTimeResolve = (resolution: PastTimeResolution) => {
-    if (!pendingTask) return;
+    if (!pending.task) return;
 
-    const { task } = pendingTask;
+    const { task } = pending.task;
     const today = format(selectedDate, 'yyyy-MM-dd');
 
     switch (resolution) {
@@ -278,7 +253,7 @@ const Index = () => {
         break;
     }
 
-    setPendingTask(null);
+    modalActions.setPendingTask(null);
   };
 
   const handleOptimizeSelected = async (selectedIds: string[]): Promise<{ scheduled: Task[]; unscheduled: Task[] }> => {
@@ -355,24 +330,24 @@ const Index = () => {
   };
 
   const handleNoSlotResolve = async (resolution: NoSlotResolution) => {
-    if (pendingUnscheduledTasks.length === 0) return;
+    if (pending.unscheduledTasks.length === 0) return;
 
     switch (resolution) {
       case 'backlog':
         // Keep in backlog - nothing to do, just close modal
         break;
       case 'ignore_preset':
-        await scheduling.scheduleIgnoringPreset(pendingUnscheduledTasks);
+        await scheduling.scheduleIgnoringPreset(pending.unscheduledTasks);
         break;
       case 'ignore_all':
-        await scheduling.scheduleIgnoringAll(pendingUnscheduledTasks);
+        await scheduling.scheduleIgnoringAll(pending.unscheduledTasks);
         break;
       case 'next_day':
-        await scheduling.scheduleForNextDay(pendingUnscheduledTasks);
+        await scheduling.scheduleForNextDay(pending.unscheduledTasks);
         break;
     }
 
-    setPendingUnscheduledTasks([]);
+    modalActions.setPendingUnscheduledTasks([]);
   };
 
   const handleHeaderOptimize = async (): Promise<{ scheduled: Task[]; unscheduled: Task[] }> => {
@@ -424,9 +399,9 @@ const Index = () => {
       <Header
         selectedDate={selectedDate}
         onDateChange={handleDateChange}
-        onAddTask={() => openAddModal('task')}
+        onAddTask={() => modalActions.openAddModal('task')}
         onAutoSchedule={handleHeaderOptimize}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
+        onOpenSettings={modalActions.openSettingsModal}
         isScheduling={isScheduling || draft.isProcessing}
       />
 
@@ -445,7 +420,7 @@ const Index = () => {
         isScheduling={isScheduling || draft.isProcessing}
         onEventClick={handleEventClick}
         onRestoreEvent={handleRestoreEvent}
-        onOpenSyncModal={() => setIsSyncModalOpen(true)}
+        onOpenSyncModal={modalActions.openSyncModal}
         taskActions={{
           ...taskActions,
           autoScheduleSelected: handleOptimizeSelected,
@@ -494,55 +469,66 @@ const Index = () => {
         <TabBar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          onAddTask={() => openAddModal('task')}
+          onAddTask={() => modalActions.openAddModal('task')}
           onAutoSchedule={handleHeaderOptimize}
           isScheduling={isScheduling || draft.isProcessing}
         />
       )}
 
-      {/* Modals */}
-      <AddModal
-        isOpen={isAddModalOpen}
-        onClose={handleAddModalClose}
-        onAddTask={handleAddTask}
-        editTask={editingTask}
-        onAddEvent={eventActions.add}
-        onUpdateEvent={eventActions.update}
-        onDeleteEvent={eventActions.remove}
-        onDismissEvent={handleDismissEvent}
-        editEvent={editingEvent}
-        selectedDate={selectedDate}
-        initialTab={addModalInitialTab}
-      />
-      <SyncCalendarModal
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        onImport={eventActions.import}
-        onClearSyncedEvents={eventActions.clearExternal}
-        onApplySyncChanges={eventActions.applySync}
-        selectedDate={selectedDate}
-        existingEvents={events}
-      />
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-      />
+      {/* Lazy-loaded modals for code splitting */}
+      <Suspense fallback={null}>
+        {modals.isAddModalOpen && (
+          <AddModal
+            key={`${editing.task?.id ?? ''}-${editing.event?.id ?? ''}-${modals.addModalInitialTab}`}
+            isOpen={modals.isAddModalOpen}
+            onClose={modalActions.closeAddModal}
+            onAddTask={handleAddTask}
+            editTask={editing.task}
+            onAddEvent={eventActions.add}
+            onUpdateEvent={eventActions.update}
+            onDeleteEvent={eventActions.remove}
+            onDismissEvent={handleDismissEvent}
+            editEvent={editing.event}
+            selectedDate={selectedDate}
+            initialTab={modals.addModalInitialTab}
+          />
+        )}
+      </Suspense>
+      <Suspense fallback={null}>
+        {modals.isSyncModalOpen && (
+          <SyncCalendarModal
+            isOpen={modals.isSyncModalOpen}
+            onClose={modalActions.closeSyncModal}
+            onImport={eventActions.import}
+            onClearSyncedEvents={eventActions.clearExternal}
+            onApplySyncChanges={eventActions.applySync}
+            selectedDate={selectedDate}
+            existingEvents={events}
+          />
+        )}
+      </Suspense>
+      {modals.isSettingsModalOpen && (
+        <SettingsModal
+          isOpen={modals.isSettingsModalOpen}
+          onClose={modalActions.closeSettingsModal}
+        />
+      )}
       <PastTimeConflictModal
-        isOpen={pendingTask !== null}
-        onClose={() => setPendingTask(null)}
+        isOpen={pending.task !== null}
+        onClose={() => modalActions.setPendingTask(null)}
         onResolve={handlePastTimeResolve}
-        taskTitle={pendingTask?.task.title ?? ''}
-        attemptedTime={pendingTask?.attemptedTime ?? ''}
+        taskTitle={pending.task?.task.title ?? ''}
+        attemptedTime={pending.task?.attemptedTime ?? ''}
       />
       <NoSlotModal
-        isOpen={pendingUnscheduledTasks.length > 0}
-        onClose={() => setPendingUnscheduledTasks([])}
+        isOpen={pending.unscheduledTasks.length > 0}
+        onClose={() => modalActions.setPendingUnscheduledTasks([])}
         onResolve={handleNoSlotResolve}
-        unscheduledCount={pendingUnscheduledTasks.length}
+        unscheduledCount={pending.unscheduledTasks.length}
       />
 
       {/* Discard draft confirmation dialog */}
-      <AlertDialog open={pendingDateChange !== null} onOpenChange={(open) => !open && handleCancelDateChange()}>
+      <AlertDialog open={pending.dateChange !== null} onOpenChange={(open) => !open && handleCancelDateChange()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard optimization changes?</AlertDialogTitle>

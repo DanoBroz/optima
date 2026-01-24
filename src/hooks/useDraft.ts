@@ -1,8 +1,106 @@
+/**
+ * Draft Mode Hook
+ * ===============
+ *
+ * Manages the "preview before commit" workflow for schedule optimization.
+ * When users click "Optimize", changes aren't saved immediately — instead,
+ * they enter draft mode where they can review, adjust, and either apply or
+ * cancel the proposed changes.
+ *
+ * ## State Machine
+ *
+ * ```
+ *                    ┌──────────────────────────────────────────┐
+ *                    │                                          │
+ *                    ▼                                          │
+ *              ┌──────────┐                                     │
+ *              │ INACTIVE │ ◄─────────────────────────────┐     │
+ *              └────┬─────┘                               │     │
+ *                   │                                     │     │
+ *                   │ startDraft()                        │     │
+ *                   ▼                                     │     │
+ *              ┌──────────┐                               │     │
+ *      ┌──────►│  ACTIVE  │◄──────────────────────┐       │     │
+ *      │       └────┬─────┘                       │       │     │
+ *      │            │                             │       │     │
+ *      │            ├── updateProposedTime()      │       │     │
+ *      │            ├── scheduleUnscheduled()     │       │     │
+ *      │            ├── toggleDraftLock()         │       │     │
+ *      │            └── removeFromDraft()         │       │     │
+ *      │                                          │       │     │
+ *      │       reOptimize()                       │       │     │
+ *      │       (recalculates)                     │       │     │
+ *      │            │                             │       │     │
+ *      └────────────┘                             │       │     │
+ *                                                 │       │     │
+ *                   ├── applyDraft() ─────► APPLYING ─────┘     │
+ *                   │                        │                  │
+ *                   │                        │ (saves to DB)    │
+ *                   │                        ▼                  │
+ *                   │                   ┌──────────┐            │
+ *                   │                   │ INACTIVE │            │
+ *                   │                   └──────────┘            │
+ *                   │                                           │
+ *                   └── cancelDraft() ──────────────────────────┘
+ * ```
+ *
+ * ## Data Flow
+ *
+ * ```
+ * User clicks "Optimize"
+ *         │
+ *         ▼
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │ startDraft(originalTasks, proposedTasks, unscheduledTasks)  │
+ * │                                                             │
+ * │   originalTasks ──► stored for comparison & revert          │
+ * │   proposedTasks ──► shown on timeline with change badges    │
+ * │   unscheduledTasks ──► shown in "couldn't fit" list         │
+ * │                                                             │
+ * │   changes Map ──► tracks 'moved' | 'new' | 'unchanged'      │
+ * │   ghostTasks ──► faded cards at original positions          │
+ * └─────────────────────────────────────────────────────────────┘
+ *         │
+ *         ▼
+ * User reviews timeline (proposed positions shown)
+ * User can:
+ *   - Drag tasks to adjust times ──► updateProposedTime()
+ *   - Lock tasks to preserve position ──► toggleDraftLock()
+ *   - Manually schedule unscheduled ──► scheduleUnscheduled()
+ *   - Re-optimize respecting locks ──► reOptimize()
+ *         │
+ *         ▼
+ * User clicks "Apply" or "Cancel"
+ *   - Apply ──► saves proposedTasks to database
+ *   - Cancel ──► discards all changes, reverts to original
+ * ```
+ *
+ * ## Ghost Tasks
+ *
+ * When a task is moved, a "ghost" card appears at its original position
+ * to help users visualize the change. Ghost tasks are computed from the
+ * changes Map by filtering for 'moved' type with an originalTime.
+ *
+ * ## Change Types
+ *
+ * - `moved`: Task time changed (was scheduled, moved to different time)
+ * - `new`: Task newly scheduled (was in backlog, now has time)
+ * - `unchanged`: Task kept same time (no optimization needed)
+ * - `removed`: Task removed from draft (reverted to original state)
+ *
+ * @module useDraft
+ */
+
 import { useState, useCallback, useMemo } from 'react';
 import type { Task, CalendarEvent, DailyEnergyLevel } from '@/types/task';
 import { scheduleService } from '@/services/scheduleService';
 import { format, addDays, parse } from 'date-fns';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Type of change for a task in draft mode */
 export type TaskChangeType = 'moved' | 'new' | 'unchanged' | 'removed';
 
 export interface TaskChange {
