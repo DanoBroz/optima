@@ -133,9 +133,6 @@ export function TimelineView({
     return calculateTimelineLayout(tasks, events);
   }, [tasks, events]);
 
-  // Dynamic lane proportions based on content presence
-  const hasEvents = todayLayout.events.length > 0;
-  const hasTasks = todayLayout.tasks.length > 0;
 
   // Create lookup maps for quick access to items by ID
   const tasksMap = useMemo(() => {
@@ -415,42 +412,11 @@ export function TimelineView({
         </div>
       </div>
 
-      {/* Events lane (left side of content area) - only if has events */}
-      {hasEvents && (
-        <div
-          className="absolute top-0 bottom-0"
-          style={{
-            left: `${HOUR_LABEL_WIDTH + LANE_GAP}px`,
-            // If no tasks, events get full width; otherwise 50%
-            width: hasTasks
-              ? `calc((100% - ${HOUR_LABEL_WIDTH + LANE_GAP * 3}px) * 0.5)`
-              : `calc(100% - ${HOUR_LABEL_WIDTH + LANE_GAP * 2}px)`,
-          }}
-        >
-          {todayLayout.events.map((layout) => {
-            const event = eventsMap.get(layout.id);
-            if (!event) return null;
-            return (
-              <PositionedEventCard
-                key={layout.id}
-                layout={layout}
-                event={event}
-                onClick={onEventClick ? () => onEventClick(event) : undefined}
-                onRestore={onRestoreEvent ? () => onRestoreEvent(event.id) : undefined}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {/* Tasks lane (right side of content area, or full width if no events) */}
+      {/* Unified content area for events and tasks */}
       <div
         className="absolute top-0 bottom-0"
         style={{
-          // If no events, start from hour label; otherwise start after events lane
-          left: hasEvents
-            ? `calc(${HOUR_LABEL_WIDTH + LANE_GAP}px + (100% - ${HOUR_LABEL_WIDTH + LANE_GAP * 3}px) * 0.5 + ${LANE_GAP}px)`
-            : `${HOUR_LABEL_WIDTH + LANE_GAP}px`,
+          left: `${HOUR_LABEL_WIDTH + LANE_GAP}px`,
           right: `${LANE_GAP}px`,
         }}
       >
@@ -473,6 +439,21 @@ export function TimelineView({
                 originalTime={ghost.originalTime}
               />
             </div>
+          );
+        })}
+
+        {/* Positioned events */}
+        {todayLayout.events.map((layout) => {
+          const event = eventsMap.get(layout.id);
+          if (!event) return null;
+          return (
+            <PositionedEventCard
+              key={layout.id}
+              layout={layout}
+              event={event}
+              onClick={onEventClick ? () => onEventClick(event) : undefined}
+              onRestore={onRestoreEvent ? () => onRestoreEvent(event.id) : undefined}
+            />
           );
         })}
 

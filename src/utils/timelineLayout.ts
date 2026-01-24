@@ -177,9 +177,14 @@ export function calculateTimelineLayout(
 
   const eventItems = events.map(eventToTimelineItem);
 
-  // Calculate columns separately for tasks and events (they have separate lanes)
-  const layoutTasks = calculateOverlapColumns(taskItems);
-  const layoutEvents = calculateOverlapColumns(eventItems);
+  // Combine all items and calculate overlaps across both types
+  // This ensures items only share horizontal space when they actually overlap in time
+  const allItems = [...taskItems, ...eventItems];
+  const layoutAll = calculateOverlapColumns(allItems);
+
+  // Split back into tasks and events for rendering
+  const layoutTasks = layoutAll.filter(item => item.type === 'task');
+  const layoutEvents = layoutAll.filter(item => item.type === 'event');
 
   // Total height is 24 hours
   const totalHeight = 24 * 60 * PIXELS_PER_MINUTE;
