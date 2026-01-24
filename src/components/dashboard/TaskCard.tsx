@@ -15,9 +15,8 @@ function formatScheduledDate(dateStr: string | null | undefined): string | null 
   return format(date, 'MMM d');
 }
 
-
-interface TaskCardProps {
-  task: Task;
+/** Grouped action callbacks for TaskCard */
+export interface TaskCardActions {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onDefer?: (id: string) => void;
@@ -25,40 +24,54 @@ interface TaskCardProps {
   onMoveToBacklog?: (id: string) => void;
   onScheduleToToday?: (id: string) => void;
   onEdit?: (id: string) => void;
+}
+
+/** Display options for TaskCard */
+export interface TaskCardDisplay {
   compact?: boolean;
   draggable?: boolean;
   showCompletionToggle?: boolean;
   /** Hide all action buttons (used in draft mode) */
   hideActions?: boolean;
-  /** Draft mode change indicator */
-  changeType?: TaskChangeType;
-  /** Original time for moved tasks (shown as "from HH:MM") */
-  originalTime?: string | null;
   /** Available height for the card (enables progressive collapse) */
   availableHeight?: number;
   /** Card is width-constrained due to column overlap */
   isWidthConstrained?: boolean;
 }
 
+/** Draft mode state for TaskCard */
+export interface TaskCardDraftState {
+  /** Draft mode change indicator */
+  changeType?: TaskChangeType;
+  /** Original time for moved tasks (shown as "from HH:MM") */
+  originalTime?: string | null;
+}
+
+interface TaskCardProps {
+  task: Task;
+  actions: TaskCardActions;
+  display?: TaskCardDisplay;
+  draftState?: TaskCardDraftState;
+}
+
 
 export function TaskCard({
   task,
-  onToggle,
-  onDelete,
-  onDefer,
-  onLockToggle,
-  onMoveToBacklog,
-  onScheduleToToday,
-  onEdit,
-  compact = false,
-  draggable = false,
-  showCompletionToggle = true,
-  hideActions = false,
-  changeType,
-  originalTime,
-  availableHeight,
-  isWidthConstrained = false,
+  actions,
+  display = {},
+  draftState = {},
 }: TaskCardProps) {
+  // Destructure grouped props with defaults
+  const { onToggle, onDelete, onDefer, onLockToggle, onMoveToBacklog, onScheduleToToday, onEdit } = actions;
+  const {
+    compact = false,
+    draggable = false,
+    showCompletionToggle = true,
+    hideActions = false,
+    availableHeight,
+    isWidthConstrained = false,
+  } = display;
+  const { changeType, originalTime } = draftState;
   // Determine content visibility based on available height
   const isHeightConstrained = availableHeight !== undefined;
   const showEnergyBadge = !isHeightConstrained || availableHeight >= CARD_HEIGHT_THRESHOLDS.compact;

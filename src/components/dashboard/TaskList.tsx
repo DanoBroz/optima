@@ -169,12 +169,8 @@ export function TaskList({
                     >
                       <TaskCard
                         task={task}
-                        onToggle={onToggleTask}
-                        onDelete={onDeleteTask}
-                        onScheduleToToday={onScheduleToToday}
-                        onEdit={onEditTask}
-                        draggable
-                        showCompletionToggle={false}
+                        actions={{ onToggle: onToggleTask, onDelete: onDeleteTask, onScheduleToToday, onEdit: onEditTask }}
+                        display={{ draggable: true, showCompletionToggle: false }}
                       />
                     </div>
                   ))}
@@ -201,12 +197,8 @@ export function TaskList({
                     >
                       <TaskCard
                         task={task}
-                        onToggle={onToggleTask}
-                        onDelete={onDeleteTask}
-                        onScheduleToToday={onScheduleToToday}
-                        onEdit={onEditTask}
-                        draggable
-                        showCompletionToggle={false}
+                        actions={{ onToggle: onToggleTask, onDelete: onDeleteTask, onScheduleToToday, onEdit: onEditTask }}
+                        display={{ draggable: true, showCompletionToggle: false }}
                       />
                     </div>
                   ))}
@@ -243,10 +235,8 @@ export function TaskList({
                       >
                         <TaskCard
                           task={task}
-                          onToggle={onToggleTask}
-                          onDelete={onDeleteTask}
-                          onEdit={onEditTask}
-                          showCompletionToggle={false}
+                          actions={{ onToggle: onToggleTask, onDelete: onDeleteTask, onEdit: onEditTask }}
+                          display={{ showCompletionToggle: false }}
                         />
                       </div>
                     ))}
@@ -268,12 +258,8 @@ export function TaskList({
             >
               <TaskCard
                 task={task}
-                onToggle={onToggleTask}
-                onDelete={onDeleteTask}
-                onScheduleToToday={onScheduleToToday}
-                onEdit={onEditTask}
-                draggable
-                showCompletionToggle={false}
+                actions={{ onToggle: onToggleTask, onDelete: onDeleteTask, onScheduleToToday, onEdit: onEditTask }}
+                display={{ draggable: true, showCompletionToggle: false }}
               />
             </div>
           ))

@@ -2,19 +2,15 @@ import { useRef, useState } from 'react';
 import { useDrag } from '@use-gesture/react';
 import { Calendar, Check, Inbox, Trash2, Undo2 } from 'lucide-react';
 import type { Task } from '@/types/task';
-import type { TaskChangeType } from '@/hooks/useDraft';
-import { TaskCard } from './TaskCard';
+import { TaskCard, type TaskCardActions, type TaskCardDisplay, type TaskCardDraftState } from './TaskCard';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
 
 interface SwipeableTaskCardProps {
   task: Task;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onDefer?: (id: string) => void;
-  onLockToggle?: (id: string) => void;
-  onMoveToBacklog?: (id: string) => void;
-  onEdit?: (id: string) => void;
+  actions: TaskCardActions;
+  display?: TaskCardDisplay;
+  draftState?: TaskCardDraftState;
   onTap?: () => void;
   /** Alternative handler for right swipe action (overrides onToggle for swipe) */
   onRightSwipe?: (id: string) => void;
@@ -22,15 +18,6 @@ interface SwipeableTaskCardProps {
   rightSwipeAction?: 'complete' | 'schedule';
   /** Left swipe behavior: 'reveal' shows action buttons, 'delete' directly deletes. Defaults to 'reveal' */
   leftSwipeAction?: 'reveal' | 'delete';
-  compact?: boolean;
-  showCompletionToggle?: boolean;
-  hideActions?: boolean;
-  changeType?: TaskChangeType;
-  originalTime?: string | null;
-  /** Available height for the card (enables progressive collapse) */
-  availableHeight?: number;
-  /** Card is width-constrained due to column overlap - disables swipe */
-  isWidthConstrained?: boolean;
 }
 
 const SWIPE_THRESHOLD = 0.35; // 35% of card width
@@ -38,22 +25,17 @@ const REVEAL_WIDTH = 140; // Width to reveal action buttons (px)
 
 export function SwipeableTaskCard({
   task,
-  onToggle,
-  onDelete,
-  onMoveToBacklog,
+  actions,
+  display = {},
+  draftState = {},
   onTap,
   onRightSwipe,
   rightSwipeAction = 'complete',
   leftSwipeAction = 'reveal',
-  compact = false,
-  showCompletionToggle = true,
-  hideActions = false,
-  changeType,
-  originalTime,
-  availableHeight,
-  isWidthConstrained = false,
-  ...restProps
 }: SwipeableTaskCardProps) {
+  // Destructure for local use
+  const { onToggle, onDelete, onMoveToBacklog } = actions;
+  const { availableHeight, isWidthConstrained = false } = display;
   const isHeightConstrained = availableHeight !== undefined;
   // Determine if backlog action is available (affects swipe behavior)
   const hasBacklogAction = !!(onMoveToBacklog && task.scheduled_time && !task.completed);
@@ -295,16 +277,9 @@ export function SwipeableTaskCard({
       >
         <TaskCard
           task={task}
-          onToggle={onToggle}
-          onDelete={onDelete}
-          compact={compact}
-          showCompletionToggle={showCompletionToggle}
-          hideActions={hideActions || true} // Always hide hover actions on mobile
-          changeType={changeType}
-          originalTime={originalTime}
-          availableHeight={availableHeight}
-          isWidthConstrained={isWidthConstrained}
-          {...restProps}
+          actions={actions}
+          display={{ ...display, hideActions: true }} // Always hide hover actions on mobile
+          draftState={draftState}
         />
       </div>
     </div>

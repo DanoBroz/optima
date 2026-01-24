@@ -1,41 +1,28 @@
 import { useEffect, useRef } from 'react';
 import type { Task } from '@/types/task';
-import type { TaskChangeType } from '@/hooks/useDraft';
 import type { LayoutItem } from '@/utils/timelineLayout';
 import { useDraggable } from '@dnd-kit/core';
-import { TaskCard } from './TaskCard';
+import { TaskCard, type TaskCardActions, type TaskCardDraftState } from './TaskCard';
 import { SwipeableTaskCard } from './SwipeableTaskCard';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface PositionedTaskCardProps {
   layout: LayoutItem;
   task: Task;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onDefer?: (id: string) => void;
-  onLockToggle?: (id: string) => void;
-  onMoveToBacklog?: (id: string) => void;
-  onEdit?: (id: string) => void;
+  actions: TaskCardActions;
+  draftState?: TaskCardDraftState;
   onTap?: () => void;
   hideActions?: boolean;
-  changeType?: TaskChangeType;
-  originalTime?: string | null;
   draggable?: boolean;
 }
 
 export function PositionedTaskCard({
   layout,
   task,
-  onToggle,
-  onDelete,
-  onDefer,
-  onLockToggle,
-  onMoveToBacklog,
-  onEdit,
+  actions,
+  draftState = {},
   onTap,
   hideActions = false,
-  changeType,
-  originalTime,
   draggable = false,
 }: PositionedTaskCardProps) {
   const isMobile = useIsMobile();
@@ -116,35 +103,17 @@ export function PositionedTaskCard({
       {isMobile ? (
         <SwipeableTaskCard
           task={task}
-          onToggle={onToggle}
-          onDelete={onDelete}
-          onDefer={onDefer}
-          onLockToggle={onLockToggle}
-          onMoveToBacklog={onMoveToBacklog}
-          onEdit={onEdit}
+          actions={actions}
+          display={{ compact: true, hideActions, availableHeight: innerHeight, isWidthConstrained }}
+          draftState={draftState}
           onTap={onTap}
-          compact
-          hideActions={hideActions}
-          changeType={changeType}
-          originalTime={originalTime}
-          availableHeight={innerHeight}
-          isWidthConstrained={isWidthConstrained}
         />
       ) : (
         <TaskCard
           task={task}
-          onToggle={onToggle}
-          onDelete={onDelete}
-          onDefer={onDefer}
-          onLockToggle={onLockToggle}
-          onMoveToBacklog={onMoveToBacklog}
-          onEdit={onEdit}
-          compact
-          hideActions={hideActions}
-          changeType={changeType}
-          originalTime={originalTime}
-          availableHeight={innerHeight}
-          isWidthConstrained={isWidthConstrained}
+          actions={actions}
+          display={{ compact: true, hideActions, availableHeight: innerHeight, isWidthConstrained }}
+          draftState={draftState}
         />
       )}
     </div>

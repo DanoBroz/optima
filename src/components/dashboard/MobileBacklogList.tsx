@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Task } from '@/types/task';
 import { SwipeableTaskCard } from './SwipeableTaskCard';
 import { TaskActionDrawer } from './TaskActionDrawer';
+import type { TaskCardActions } from './TaskCard';
 import { Inbox, Sparkles, ChevronDown, Calendar, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,31 +44,37 @@ export function MobileBacklogList({
   const uncompletedTasks = allTasks.filter(t => !t.completed);
   const totalCount = allTasks.length;
 
-  const renderTaskCard = (task: Task, index: number, allowScheduleToToday = true) => (
-    <div
-      key={task.id}
-      className="animate-slide-up"
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      <SwipeableTaskCard
-        task={task}
-        onToggle={onToggleTask}
-        onDelete={onDeleteTask}
-        onDefer={allowScheduleToToday ? onDeferTask : undefined}
-        onEdit={onEditTask}
-        onLockToggle={onLockToggle}
-        onRightSwipe={allowScheduleToToday ? onScheduleToToday : undefined}
-        rightSwipeAction={allowScheduleToToday ? "schedule" : "complete"}
-        leftSwipeAction="delete"
-        onMoveToBacklog={undefined}
-        onTap={() => {
-          setDrawerTask(task);
-          setDrawerOpen(true);
-        }}
-        compact
-      />
-    </div>
-  );
+  const renderTaskCard = (task: Task, index: number, allowScheduleToToday = true) => {
+    const taskActions: TaskCardActions = {
+      onToggle: onToggleTask,
+      onDelete: onDeleteTask,
+      onDefer: allowScheduleToToday ? onDeferTask : undefined,
+      onEdit: onEditTask,
+      onLockToggle,
+      onMoveToBacklog: undefined,
+    };
+
+    return (
+      <div
+        key={task.id}
+        className="animate-slide-up"
+        style={{ animationDelay: `${index * 50}ms` }}
+      >
+        <SwipeableTaskCard
+          task={task}
+          actions={taskActions}
+          display={{ compact: true }}
+          onRightSwipe={allowScheduleToToday ? onScheduleToToday : undefined}
+          rightSwipeAction={allowScheduleToToday ? "schedule" : "complete"}
+          leftSwipeAction="delete"
+          onTap={() => {
+            setDrawerTask(task);
+            setDrawerOpen(true);
+          }}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="bg-card rounded-3xl shadow-card border border-border/30 overflow-hidden">

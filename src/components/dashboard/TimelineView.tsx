@@ -10,7 +10,7 @@ import {
   type DragMoveEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { TaskCard } from './TaskCard';
+import { TaskCard, type TaskCardActions } from './TaskCard';
 import { SwipeableTaskCard } from './SwipeableTaskCard';
 import { TaskActionDrawer } from './TaskActionDrawer';
 import { GhostTaskCard } from './GhostTaskCard';
@@ -286,6 +286,14 @@ export function TimelineView({
                 const change = draftMode ? draftChanges?.get(task.id) : undefined;
 
                 // Mobile: Use swipeable card with tap-to-open drawer
+                const taskActions: TaskCardActions = {
+                  onToggle: onToggleTask,
+                  onDelete: onDeleteTask,
+                  onDefer: onDeferTask,
+                  onLockToggle,
+                  onEdit: onEditTask,
+                };
+
                 if (isMobile) {
                   return (
                     <div
@@ -295,19 +303,13 @@ export function TimelineView({
                     >
                       <SwipeableTaskCard
                         task={task}
-                        onToggle={onToggleTask}
-                        onDelete={onDeleteTask}
-                        onDefer={onDeferTask}
-                        onLockToggle={onLockToggle}
-                        onEdit={onEditTask}
+                        actions={taskActions}
+                        display={{ compact: true, hideActions: draftMode }}
+                        draftState={{ changeType: change?.type, originalTime: change?.originalTime }}
                         onTap={() => {
                           setDrawerTask(task);
                           setDrawerOpen(true);
                         }}
-                        compact
-                        hideActions={draftMode}
-                        changeType={change?.type}
-                        originalTime={change?.originalTime}
                       />
                     </div>
                   );
@@ -322,15 +324,9 @@ export function TimelineView({
                   >
                     <TaskCard
                       task={task}
-                      onToggle={onToggleTask}
-                      onDelete={onDeleteTask}
-                      onDefer={onDeferTask}
-                      onLockToggle={onLockToggle}
-                      onEdit={onEditTask}
-                      compact
-                      hideActions={draftMode}
-                      changeType={change?.type}
-                      originalTime={change?.originalTime}
+                      actions={taskActions}
+                      display={{ compact: true, hideActions: draftMode }}
+                      draftState={{ changeType: change?.type, originalTime: change?.originalTime }}
                     />
                   </div>
                 );
@@ -462,25 +458,27 @@ export function TimelineView({
           const task = tasksMap.get(layout.id);
           if (!task) return null;
           const change = draftMode ? draftChanges?.get(task.id) : undefined;
+          const taskActions: TaskCardActions = {
+            onToggle: onToggleTask,
+            onDelete: onDeleteTask,
+            onDefer: onDeferTask,
+            onLockToggle,
+            onMoveToBacklog,
+            onEdit: onEditTask,
+          };
 
           return (
             <PositionedTaskCard
               key={layout.id}
               layout={layout}
               task={task}
-              onToggle={onToggleTask}
-              onDelete={onDeleteTask}
-              onDefer={onDeferTask}
-              onLockToggle={onLockToggle}
-              onMoveToBacklog={onMoveToBacklog}
-              onEdit={onEditTask}
+              actions={taskActions}
+              draftState={{ changeType: change?.type, originalTime: change?.originalTime }}
               onTap={() => {
                 setDrawerTask(task);
                 setDrawerOpen(true);
               }}
               hideActions={draftMode}
-              changeType={change?.type}
-              originalTime={change?.originalTime}
               draggable={!draftMode && !isMobile}
             />
           );
@@ -602,23 +600,24 @@ export function TimelineView({
             <div className="p-3 space-y-2">
               {tomorrowTasks.map((task) => {
                 const change = draftChanges?.get(task.id);
+                const taskActions: TaskCardActions = {
+                  onToggle: onToggleTask,
+                  onDelete: onDeleteTask,
+                  onDefer: onDeferTask,
+                  onLockToggle,
+                  onEdit: onEditTask,
+                };
                 return (
                   <SwipeableTaskCard
                     key={task.id}
                     task={task}
-                    onToggle={onToggleTask}
-                    onDelete={onDeleteTask}
-                    onDefer={onDeferTask}
-                    onLockToggle={onLockToggle}
-                    onEdit={onEditTask}
+                    actions={taskActions}
+                    display={{ compact: true, hideActions: draftMode }}
+                    draftState={{ changeType: change?.type, originalTime: change?.originalTime }}
                     onTap={() => {
                       setDrawerTask(task);
                       setDrawerOpen(true);
                     }}
-                    compact
-                    hideActions={draftMode}
-                    changeType={change?.type}
-                    originalTime={change?.originalTime}
                   />
                 );
               })}
