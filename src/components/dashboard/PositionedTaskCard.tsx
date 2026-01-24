@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import type { Task } from '@/types/task';
 import type { TaskChangeType } from '@/hooks/useDraft';
 import type { LayoutItem } from '@/utils/timelineLayout';
+import { useDraggable } from '@dnd-kit/core';
 import { TaskCard } from './TaskCard';
 import { SwipeableTaskCard } from './SwipeableTaskCard';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -19,7 +21,6 @@ interface PositionedTaskCardProps {
   changeType?: TaskChangeType;
   originalTime?: string | null;
   draggable?: boolean;
-  onDragStart?: (e: React.DragEvent, taskId: string) => void;
 }
 
 export function PositionedTaskCard({
@@ -36,10 +37,55 @@ export function PositionedTaskCard({
   changeType,
   originalTime,
   draggable = false,
-  onDragStart,
 }: PositionedTaskCardProps) {
   const isMobile = useIsMobile();
   const { column, totalColumns, top, height } = layout;
+
+  // dnd-kit draggable hook
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: {
+      cardTop: top, // Pass card top position for offset calculation
+    },
+    disabled: !draggable || isMobile,
+  });
+
+  // Track the visual position when drag ends to prevent any movement
+  const dropPositionRef = useRef<number | null>(null);
+  const previousTopRef = useRef(top);
+
+  // When dragging, continuously track where we'd drop
+  useEffect(() => {
+    if (isDragging && transform) {
+      dropPositionRef.current = top + transform.y;
+    }
+  }, [isDragging, transform, top]);
+
+  // When top changes after a drop, clear the stored position
+  useEffect(() => {
+    if (dropPositionRef.current !== null && top !== previousTopRef.current) {
+      // Position has updated, clear drop position
+      dropPositionRef.current = null;
+    }
+    previousTopRef.current = top;
+  }, [top]);
+
+  // Calculate the transform needed to keep card visually stable
+  let visualTransform: string | undefined;
+  if (isDragging && transform) {
+    // During drag: apply the drag transform
+    visualTransform = `translate3d(0, ${transform.y}px, 0)`;
+  } else if (dropPositionRef.current !== null) {
+    // Just dropped: compensate to keep card at drop position
+    const compensate = dropPositionRef.current - top;
+    if (Math.abs(compensate) > 1) {
+      visualTransform = `translate3d(0, ${compensate}px, 0)`;
+    }
+  }
+
+  const style = {
+    transform: visualTransform,
+  };
 
   // Calculate width and position based on column assignment
   const widthPercent = 100 / totalColumns;
@@ -54,15 +100,18 @@ export function PositionedTaskCard({
 
   return (
     <div
+      ref={setNodeRef}
       className="absolute px-1"
       style={{
         top: `${top + verticalPadding}px`,
         height: `${innerHeight}px`,
         left: `${leftPercent}%`,
         width: `${widthPercent}%`,
+        cursor: draggable && !isMobile ? (isDragging ? 'grabbing' : 'grab') : undefined,
+        zIndex: isDragging ? 50 : undefined,
+        ...style,
       }}
-      draggable={draggable && !isMobile}
-      onDragStart={draggable && onDragStart ? (e) => onDragStart(e, task.id) : undefined}
+      {...(draggable && !isMobile ? { ...listeners, ...attributes } : {})}
     >
       {isMobile ? (
         <SwipeableTaskCard
@@ -91,7 +140,6 @@ export function PositionedTaskCard({
           onMoveToBacklog={onMoveToBacklog}
           onEdit={onEdit}
           compact
-          draggable={draggable}
           hideActions={hideActions}
           changeType={changeType}
           originalTime={originalTime}

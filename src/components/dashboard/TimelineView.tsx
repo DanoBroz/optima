@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import type { Task, CalendarEvent } from '@/types/task';
 import type { TaskChange, ChangesSummary } from '@/hooks/useDraft';
+import {
+  DndContext,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  type DragStartEvent,
+  type DragMoveEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { TaskCard } from './TaskCard';
 import { SwipeableTaskCard } from './SwipeableTaskCard';
 import { TaskActionDrawer } from './TaskActionDrawer';
@@ -137,9 +146,19 @@ export function TimelineView({
     return new Map(events.map(e => [e.id, e]));
   }, [events]);
 
-  // State for drag-and-drop visual feedback
+  // State for drag-and-drop with dnd-kit
   const [dropIndicatorY, setDropIndicatorY] = useState<number | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef<number>(0); // Offset from card top to grab point
+
+  // dnd-kit sensors - use PointerSensor for both mouse and touch
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before starting drag
+      },
+    })
+  );
 
   // Update current time every minute
   useEffect(() => {
@@ -197,45 +216,53 @@ export function TimelineView({
     });
   }, [tasks]);
 
-  // Drag-and-drop handlers for the positioned timeline
-  const handleTimelineDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  // dnd-kit drag handlers
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+
+    // Store the offset from the card's top to the grab point
+    const cardTop = active.data.current?.cardTop as number | undefined;
+    if (cardTop !== undefined && timelineRef.current) {
+      const rect = timelineRef.current.getBoundingClientRect();
+      const initialY = (event.activatorEvent as PointerEvent).clientY;
+      const mouseY = initialY - rect.top + (todayScrollRef.current?.scrollTop ?? 0);
+      dragOffsetRef.current = mouseY - cardTop;
+    }
+  }, []);
+
+  const handleDragMove = useCallback((event: DragMoveEvent) => {
     const rect = timelineRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const y = e.clientY - rect.top + (todayScrollRef.current?.scrollTop ?? 0);
+    // Get the current pointer position
+    const pointerY = (event.activatorEvent as PointerEvent).clientY + event.delta.y;
+    const y = pointerY - rect.top + (todayScrollRef.current?.scrollTop ?? 0);
+
+    // Subtract offset so indicator shows where card's TOP will land
+    const adjustedY = y - dragOffsetRef.current;
     // Snap to 15-minute intervals for visual feedback
-    const minutes = Math.round(y / PIXELS_PER_MINUTE / 15) * 15;
-    setDropIndicatorY(minutes * PIXELS_PER_MINUTE);
-  };
+    const minutes = Math.round(adjustedY / PIXELS_PER_MINUTE / 15) * 15;
+    const clampedMinutes = Math.max(0, Math.min(minutes, 24 * 60 - 15)); // Clamp to valid range
+    setDropIndicatorY(clampedMinutes * PIXELS_PER_MINUTE);
+  }, []);
 
-  const handleTimelineDragLeave = () => {
-    setDropIndicatorY(null);
-  };
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active } = event;
+    const taskId = active.id as string;
 
-  const handleTimelineDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const taskId = e.dataTransfer.getData('taskId');
-    if (!taskId) {
-      setDropIndicatorY(null);
-      return;
+    if (dropIndicatorY !== null) {
+      const time = pixelsToTime(dropIndicatorY, true, 15);
+      onRescheduleTask(taskId, time);
     }
 
-    const rect = timelineRef.current?.getBoundingClientRect();
-    if (!rect) {
-      setDropIndicatorY(null);
-      return;
-    }
-
-    const y = e.clientY - rect.top + (todayScrollRef.current?.scrollTop ?? 0);
-    const time = pixelsToTime(y, true, 15); // Snap to 15-minute intervals
-    onRescheduleTask(taskId, time);
     setDropIndicatorY(null);
-  };
+    dragOffsetRef.current = 0;
+  }, [dropIndicatorY, onRescheduleTask]);
 
-  const handleTaskDragStart = (e: React.DragEvent, taskId: string) => {
-    e.dataTransfer.setData('taskId', taskId);
-  };
+  const handleDragCancel = useCallback(() => {
+    setDropIndicatorY(null);
+    dragOffsetRef.current = 0;
+  }, []);
 
   // Render a single hour row for the tomorrow timeline (simplified, no drag-drop)
   const renderTomorrowHourRow = (hour: number, hourTasks: Task[]) => {
@@ -324,9 +351,6 @@ export function TimelineView({
       ref={timelineRef}
       className="relative"
       style={{ height: `${TOTAL_HEIGHT}px` }}
-      onDragOver={handleTimelineDragOver}
-      onDragLeave={handleTimelineDragLeave}
-      onDrop={handleTimelineDrop}
     >
       {/* Hour grid lines and labels - fixed compact height */}
       {HOURS.map((hour) => {
@@ -476,8 +500,7 @@ export function TimelineView({
               hideActions={draftMode}
               changeType={change?.type}
               originalTime={change?.originalTime}
-              draggable={!draftMode}
-              onDragStart={handleTaskDragStart}
+              draggable={!draftMode && !isMobile}
             />
           );
         })}
@@ -503,38 +526,45 @@ export function TimelineView({
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 md:overflow-hidden">
-      {/* Desktop: Dual-pane layout */}
-      <div className="hidden md:flex flex-1 overflow-hidden">
-        {/* Today's timeline */}
-        <div
-          ref={todayScrollRef}
-          onScroll={hasTomorrowTasks ? handleTodayScroll : undefined}
-          className={cn(
-            "flex-1 overflow-y-auto scrollbar-hide",
-            hasTomorrowTasks && "border-r border-border/30"
-          )}
-        >
-          {/* DraftBar - sticky header for desktop (inside scroll container) */}
-          {draftBarProps && (
-            <DraftBar
-              changesSummary={draftBarProps.changesSummary}
-              onCancel={draftBarProps.onCancel}
-              onReOptimize={draftBarProps.onReOptimize}
-              onApply={draftBarProps.onApply}
-              isProcessing={draftBarProps.isProcessing}
-            />
-          )}
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <div className="flex flex-col flex-1 min-h-0 md:overflow-hidden">
+        {/* Desktop: Dual-pane layout */}
+        <div className="hidden md:flex flex-1 overflow-hidden">
+          {/* Today's timeline */}
+          <div
+            ref={todayScrollRef}
+            onScroll={hasTomorrowTasks ? handleTodayScroll : undefined}
+            className={cn(
+              "flex-1 overflow-y-auto scrollbar-hide",
+              hasTomorrowTasks && "border-r border-border/30"
+            )}
+          >
+            {/* DraftBar - sticky header for desktop (inside scroll container) */}
+            {draftBarProps && (
+              <DraftBar
+                changesSummary={draftBarProps.changesSummary}
+                onCancel={draftBarProps.onCancel}
+                onReOptimize={draftBarProps.onReOptimize}
+                onApply={draftBarProps.onApply}
+                isProcessing={draftBarProps.isProcessing}
+              />
+            )}
 
-          {/* Date header - sticky (only show in draft mode with tomorrow tasks) */}
-          {hasTomorrowTasks && (
-            <div className={cn(
-              "sticky z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30",
-              draftBarProps ? "top-[60px]" : "top-0"
-            )}>
-              <span className="text-sm font-semibold">Today · {formatDateHeader(currentDate)}</span>
-            </div>
-          )}
+            {/* Date header - sticky (only show in draft mode with tomorrow tasks) */}
+            {hasTomorrowTasks && (
+              <div className={cn(
+                "sticky z-10 bg-card/95 backdrop-blur-sm px-4 py-2 border-b border-border/30",
+                draftBarProps ? "top-[60px]" : "top-0"
+              )}>
+                <span className="text-sm font-semibold">Today · {formatDateHeader(currentDate)}</span>
+              </div>
+            )}
 
             {/* Today's timeline content */}
             <div className="pb-24">
@@ -616,18 +646,19 @@ export function TimelineView({
         )}
       </div>
 
-      {/* Task action drawer for mobile */}
-      <TaskActionDrawer
-        task={drawerTask}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        onToggle={onToggleTask}
-        onDelete={onDeleteTask}
-        onDefer={onDeferTask}
-        onLockToggle={onLockToggle}
-        onMoveToBacklog={onMoveToBacklog}
-        onEdit={onEditTask}
-      />
-    </div>
+        {/* Task action drawer for mobile */}
+        <TaskActionDrawer
+          task={drawerTask}
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          onToggle={onToggleTask}
+          onDelete={onDeleteTask}
+          onDefer={onDeferTask}
+          onLockToggle={onLockToggle}
+          onMoveToBacklog={onMoveToBacklog}
+          onEdit={onEditTask}
+        />
+      </div>
+    </DndContext>
   );
 }
