@@ -4,6 +4,8 @@ import type { Task } from '@/types/task';
 import type { TaskChangeType } from '@/hooks/useDraft';
 import { cn } from '@/lib/utils';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
+import { PRIORITY_CONFIG, TASK_ENERGY_BADGES } from '@/config/energy';
+import { CARD_HEIGHT_THRESHOLDS } from '@/config/layout';
 
 function formatScheduledDate(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
@@ -13,13 +15,6 @@ function formatScheduledDate(dateStr: string | null | undefined): string | null 
   return format(date, 'MMM d');
 }
 
-// Content visibility thresholds based on available height
-const HEIGHT_THRESHOLDS = {
-  minimal: 48,    // Just title + time
-  compact: 64,    // + energy badge
-  normal: 80,     // + priority indicator
-  expanded: 96,   // All content with comfortable spacing
-};
 
 interface TaskCardProps {
   task: Task;
@@ -45,17 +40,6 @@ interface TaskCardProps {
   isWidthConstrained?: boolean;
 }
 
-const priorityIndicators = {
-  low: { marks: '!', color: 'text-muted-foreground' },
-  medium: { marks: '!!', color: 'text-amber-500 dark:text-amber-400' },
-  high: { marks: '!!!', color: 'text-destructive' },
-};
-
-const energyBadges = {
-  low: { bg: 'bg-secondary', text: 'text-muted-foreground' },
-  medium: { bg: 'bg-accent', text: 'text-accent-foreground' },
-  high: { bg: 'bg-primary/15', text: 'text-primary' },
-};
 
 export function TaskCard({
   task,
@@ -77,11 +61,11 @@ export function TaskCard({
 }: TaskCardProps) {
   // Determine content visibility based on available height
   const isHeightConstrained = availableHeight !== undefined;
-  const showEnergyBadge = !isHeightConstrained || availableHeight >= HEIGHT_THRESHOLDS.compact;
-  const showPriorityMeta = !isHeightConstrained || availableHeight >= HEIGHT_THRESHOLDS.normal;
-  const showDraftBadges = !isHeightConstrained || availableHeight >= HEIGHT_THRESHOLDS.normal;
-  const isMinimal = isHeightConstrained && availableHeight < HEIGHT_THRESHOLDS.compact;
-  const isCompactHeight = isHeightConstrained && availableHeight < HEIGHT_THRESHOLDS.normal;
+  const showEnergyBadge = !isHeightConstrained || availableHeight >= CARD_HEIGHT_THRESHOLDS.compact;
+  const showPriorityMeta = !isHeightConstrained || availableHeight >= CARD_HEIGHT_THRESHOLDS.normal;
+  const showDraftBadges = !isHeightConstrained || availableHeight >= CARD_HEIGHT_THRESHOLDS.normal;
+  const isMinimal = isHeightConstrained && availableHeight < CARD_HEIGHT_THRESHOLDS.compact;
+  const isCompactHeight = isHeightConstrained && availableHeight < CARD_HEIGHT_THRESHOLDS.normal;
 
   // Width-constrained adjustments (when cards overlap)
   const showCheckbox = showCompletionToggle && !isWidthConstrained;
@@ -144,9 +128,9 @@ export function TaskCard({
             <span className={cn(
               "font-bold flex-shrink-0",
               isMinimal ? "text-[10px]" : "text-xs",
-              priorityIndicators[task.priority].color
+              PRIORITY_CONFIG[task.priority].color
             )}>
-              {priorityIndicators[task.priority].marks}
+              {PRIORITY_CONFIG[task.priority].marks}
             </span>
             <p
               className={cn(
@@ -201,8 +185,8 @@ export function TaskCard({
               <span className={cn(
                 "font-semibold rounded-full capitalize",
                 isCompactHeight ? "text-[8px] px-1.5 py-0" : "text-[10px] px-2 py-0.5",
-                energyBadges[task.energy_level].bg,
-                energyBadges[task.energy_level].text
+                TASK_ENERGY_BADGES[task.energy_level].bg,
+                TASK_ENERGY_BADGES[task.energy_level].text
               )}>
                 {task.energy_level}
               </span>

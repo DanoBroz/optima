@@ -4,14 +4,8 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getEventDrainMinutes, getEventEnergyLevel } from '@/utils/energy';
 import { formatDuration } from '@/utils/time';
-
-// Content visibility thresholds based on available height
-const HEIGHT_THRESHOLDS = {
-  minimal: 48,    // Just title + time
-  compact: 64,    // + energy indicator
-  normal: 80,     // + location
-  expanded: 96,   // All content with comfortable spacing
-};
+import { EVENT_ENERGY_CONFIG } from '@/config/energy';
+import { CARD_HEIGHT_THRESHOLDS } from '@/config/layout';
 
 interface EventCardProps {
   event: CalendarEvent;
@@ -31,19 +25,13 @@ export function EventCard({ event, onClick, onRestore, availableHeight }: EventC
 
   // Determine content visibility based on available height
   const isHeightConstrained = availableHeight !== undefined;
-  const showEnergyDrain = !isHeightConstrained || availableHeight >= HEIGHT_THRESHOLDS.compact;
-  const showLocation = !isHeightConstrained || availableHeight >= HEIGHT_THRESHOLDS.normal;
-  const showBadge = !isHeightConstrained || availableHeight >= HEIGHT_THRESHOLDS.expanded;
-  const isMinimal = isHeightConstrained && availableHeight < HEIGHT_THRESHOLDS.compact;
-  const isCompactHeight = isHeightConstrained && availableHeight < HEIGHT_THRESHOLDS.normal;
-  const energyConfig = {
-    restful: { emoji: '🌿', label: 'Restful', bg: 'bg-sky-100 dark:bg-sky-900/40', border: 'border-sky-200 dark:border-sky-700', accent: 'text-sky-700 dark:text-sky-300', title: 'text-sky-900 dark:text-sky-100' },
-    low: { emoji: '🧘', label: 'Light', bg: 'bg-success/10', border: 'border-success/20', accent: 'text-success', title: 'text-foreground' },
-    medium: { emoji: '💼', label: 'Normal', bg: 'bg-primary/10', border: 'border-primary/20', accent: 'text-primary', title: 'text-foreground' },
-    high: { emoji: '🔥', label: 'Draining', bg: 'bg-destructive/10', border: 'border-destructive/20', accent: 'text-destructive', title: 'text-foreground' },
-  };
+  const showEnergyDrain = !isHeightConstrained || availableHeight >= CARD_HEIGHT_THRESHOLDS.compact;
+  const showLocation = !isHeightConstrained || availableHeight >= CARD_HEIGHT_THRESHOLDS.normal;
+  const showBadge = !isHeightConstrained || availableHeight >= CARD_HEIGHT_THRESHOLDS.expanded;
+  const isMinimal = isHeightConstrained && availableHeight < CARD_HEIGHT_THRESHOLDS.compact;
+  const isCompactHeight = isHeightConstrained && availableHeight < CARD_HEIGHT_THRESHOLDS.normal;
 
-  const config = energyConfig[energyLevel];
+  const config = EVENT_ENERGY_CONFIG[energyLevel];
 
   const handleRestoreClick = (e: React.MouseEvent) => {
     e.stopPropagation();

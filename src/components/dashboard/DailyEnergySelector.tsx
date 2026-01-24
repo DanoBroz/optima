@@ -1,18 +1,11 @@
 import type { DailyEnergyLevel } from '@/types/task';
 import { cn } from '@/lib/utils';
+import { DAILY_ENERGY_OPTIONS } from '@/config/energy';
 
 interface DailyEnergySelectorProps {
   currentLevel: DailyEnergyLevel | null;
   onSelect: (level: DailyEnergyLevel) => void;
 }
-
-const energyConfig: { level: DailyEnergyLevel; emoji: string; label: string }[] = [
-  { level: 'exhausted', emoji: '🌙', label: 'Rest' },
-  { level: 'low', emoji: '🌿', label: 'Low' },
-  { level: 'medium', emoji: '☀️', label: 'Good' },
-  { level: 'high', emoji: '⚡', label: 'High' },
-  { level: 'energized', emoji: '🔥', label: 'Peak' },
-];
 
 export function DailyEnergySelector({ currentLevel, onSelect }: DailyEnergySelectorProps) {
   return (
@@ -21,7 +14,7 @@ export function DailyEnergySelector({ currentLevel, onSelect }: DailyEnergySelec
         How's your energy today?
       </h3>
       <div className="flex gap-2">
-        {energyConfig.map(({ level, emoji, label }) => {
+        {DAILY_ENERGY_OPTIONS.map(({ level, emoji, label }) => {
           const isSelected = currentLevel === level;
           
           return (

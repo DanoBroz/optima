@@ -1,32 +1,17 @@
 import type { CalendarEvent, DailyEnergyLevel, DayIntention, Task } from '@/types/task';
 import { getDurationMinutes } from './time';
+import {
+  EVENT_ENERGY_CONFIG,
+  DAILY_ENERGY_CONFIG,
+  INTENTION_MULTIPLIERS,
+  type EventEnergyLevel,
+} from '@/config/energy';
 
-
-const ENERGY_DRAIN_MULTIPLIERS: Record<EventEnergyLevel, number> = {
-  restful: 0,
-  low: 0.5,
-  medium: 1.0,
-  high: 1.5,
-};
-
-const DAILY_ENERGY_MULTIPLIERS: Record<DailyEnergyLevel, number> = {
-  exhausted: 0.3,
-  low: 0.5,
-  medium: 0.7,
-  high: 0.85,
-  energized: 1.0,
-};
-
-const INTENTION_MULTIPLIERS: Record<DayIntention, number> = {
-  push: 1.2,
-  balance: 1.0,
-  recovery: 0.6,
-};
-
-export type EventEnergyLevel = 'restful' | 'low' | 'medium' | 'high';
+// Re-export for backward compatibility
+export type { EventEnergyLevel };
 
 export const getDailyEnergyMultiplier = (energy: DailyEnergyLevel): number => {
-  return DAILY_ENERGY_MULTIPLIERS[energy];
+  return DAILY_ENERGY_CONFIG[energy].multiplier;
 };
 
 export const getIntentionMultiplier = (intention: DayIntention): number => {
@@ -44,7 +29,7 @@ export const getEventDrainMinutes = (event: CalendarEvent): number => {
 
   const durationMinutes = getDurationMinutes(event.start_time, event.end_time);
   const energyLevel = getEventEnergyLevel(event);
-  return Math.round(durationMinutes * ENERGY_DRAIN_MULTIPLIERS[energyLevel]);
+  return Math.round(durationMinutes * EVENT_ENERGY_CONFIG[energyLevel].drainMultiplier);
 };
 
 export const getTaskEnergyAlignmentBonus = (

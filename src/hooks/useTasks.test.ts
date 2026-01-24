@@ -20,6 +20,7 @@ vi.mock('@/data/taskRepository', () => ({
 vi.mock('@/data/eventRepository', () => ({
   eventRepository: {
     getAll: vi.fn(),
+    getByDateRange: vi.fn(),
     add: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
@@ -88,7 +89,7 @@ describe('useTasks', () => {
 
   it('loads tasks, events, and energy on mount', async () => {
     vi.mocked(taskRepository.getAll).mockResolvedValue([baseTask()]);
-    vi.mocked(eventRepository.getAll).mockResolvedValue([baseEvent()]);
+    vi.mocked(eventRepository.getByDateRange).mockResolvedValue([baseEvent()]);
     vi.mocked(energyRepository.getByDate).mockResolvedValue(baseEnergy());
 
     const { result } = renderHook(() => useTasks(new Date('2024-01-01T12:00:00')));
